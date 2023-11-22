@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>JoltPhysics.js Blender Present</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="stylesheet" type="text/css" href="style.css">
+	</head>
+	<body>
+		<div id="container">Loading...</div>
+		<div id="info">JoltPhysics.js present for Blender. Best regards</div>
+
+		<script src="jolt/three/three.min.js"></script>
+		<script src="jolt/three/OrbitControls.js"></script>
+		<script src="jolt/three/WebGL.js"></script>
+		<script src="jolt/three/stats.min.js"></script>
+		<script src="jolt/example.js"></script>
+
+		<script type="module">
+            import initJolt from 'https://www.unpkg.com/jolt-physics/dist/jolt-physics.wasm-compat.js';
+
+			initJolt().then(function (Jolt) {
+				// Initialize this example
+				initExample(Jolt, null);
+
+				// Create a basic floor
+				createFloor();
+
+				createBox(
+                    new Jolt.Vec3(-16, 8, 0),
+                    Jolt.Quat.prototype.sIdentity(),
+                    new Jolt.Vec3(0.1, 10, 1),
+                    Jolt.EMotionType_Static, Jolt.NON_MOVING);
+				createBox(
+					new Jolt.Vec3(16, 8, 0),
+					Jolt.Quat.prototype.sIdentity(),
+					new Jolt.Vec3(0.1, 10, 1),
+					Jolt.EMotionType_Static, Jolt.NON_MOVING);
+
+				let size_multiplier = 4.5;
+				let sizes = [0.1581, 0.10, 0.0707, 0.05, 0.0316, 0.0224];
+				let counts = [16, 27, 52, 446, 676, 2487];
+				let colors = [0xd6c2d6, 0x3d4d5c, 0x758ca3, 0xffd11a, 0xd1d1e0, 0xffa64d];
+
+				let tier = 0;
+				let shape = new Jolt.SphereShape(sizes[tier] * size_multiplier, null);
+				let creationSettingsDiamond = new Jolt.BodyCreationSettings(shape,
+					new Jolt.Vec3(0, 0, 0), Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, Jolt.MOVING);
+				creationSettingsDiamond.mAllowedDOFs = Jolt.EAllowedDOFs_Plane2D;
+
+				let xpos = 0;
+				let ypos = 20;
+				for (let i = 0; i < counts[tier]; ++i) { 
+					creationSettingsDiamond.mPosition = new Jolt.Vec3(xpos, ypos + i, 0)
+					let body = bodyInterface.CreateBody(creationSettingsDiamond);
+					addToScene(body, colors[tier]);
+				}
+
+				tier++;
+				xpos = -2;
+				shape = new Jolt.SphereShape(sizes[tier] * size_multiplier, null);
+				let creationSettingsTitanium = new Jolt.BodyCreationSettings(shape,
+					new Jolt.Vec3(0, 0, 0), Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, Jolt.MOVING);
+				creationSettingsTitanium.mAllowedDOFs = Jolt.EAllowedDOFs_Plane2D;
+				for (let i = 0; i < counts[tier]; ++i) { 
+					creationSettingsTitanium.mPosition = new Jolt.Vec3(xpos, ypos + i, 0)
+					let body = bodyInterface.CreateBody(creationSettingsTitanium);
+					addToScene(body, colors[tier]);
+				}
+
+				tier++;
+				xpos = 2;
+				shape = new Jolt.SphereShape(sizes[tier] * size_multiplier, null);
+				let creationSettingsPlatinum = new Jolt.BodyCreationSettings(shape,
+					new Jolt.Vec3(0, 0, 0), Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, Jolt.MOVING);
+					creationSettingsPlatinum.mAllowedDOFs = Jolt.EAllowedDOFs_Plane2D;
+				for (let i = 0; i < counts[tier]; ++i) { 
+					creationSettingsPlatinum.mPosition = new Jolt.Vec3(xpos, ypos + i, 0)
+					let body = bodyInterface.CreateBody(creationSettingsPlatinum);
+					addToScene(body, colors[tier]);
+				}
+
+				tier++;
+				xpos = 4;
+				shape = new Jolt.SphereShape(sizes[tier] * size_multiplier, null);
+				let creationSettingsGold = new Jolt.BodyCreationSettings(shape,
+					new Jolt.Vec3(0, 0, 0), Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, Jolt.MOVING);
+					creationSettingsGold.mAllowedDOFs = Jolt.EAllowedDOFs_Plane2D;
+				for (let i = 0; i < counts[tier]; ++i) {
+					let col = i % 20
+					creationSettingsGold.mPosition = new Jolt.Vec3(xpos+col/10, ypos + i/20, 0)
+					let body = bodyInterface.CreateBody(creationSettingsGold);
+					addToScene(body, colors[tier]);
+				}
+
+				tier++;
+				xpos = -4;
+				shape = new Jolt.SphereShape(sizes[tier] * size_multiplier, null);
+				let creationSettingsSilver = new Jolt.BodyCreationSettings(shape,
+					new Jolt.Vec3(0, 0, 0), Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, Jolt.MOVING);
+					creationSettingsSilver.mAllowedDOFs = Jolt.EAllowedDOFs_Plane2D;
+				for (let i = 0; i < counts[tier]; ++i) { 
+					let col = i % 30
+					creationSettingsSilver.mPosition = new Jolt.Vec3(xpos - col/10, ypos + i/30, 0)
+					let body = bodyInterface.CreateBody(creationSettingsSilver);
+					addToScene(body, colors[tier]);
+				}
+
+				tier++;
+				xpos = 6;
+				shape = new Jolt.SphereShape(sizes[tier] * size_multiplier, null);
+				let creationSettingsBronze = new Jolt.BodyCreationSettings(shape,
+					new Jolt.Vec3(0, 0, 0), Jolt.Quat.prototype.sIdentity(), Jolt.EMotionType_Dynamic, Jolt.MOVING);
+					creationSettingsBronze.mAllowedDOFs = Jolt.EAllowedDOFs_Plane2D;
+				for (let i = 0; i < counts[tier]; ++i) {
+					let col = i % 10
+					creationSettingsBronze.mPosition = new Jolt.Vec3(xpos + col/5, ypos + i/10, 0)
+					let body = bodyInterface.CreateBody(creationSettingsBronze);
+					addToScene(body, colors[tier]);
+				}
+			});
+
+		</script>
+	</body>
+</html>

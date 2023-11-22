@@ -1,0 +1,32 @@
+{
+    "compilerOptions": {
+      "target": "ES2022",
+  
+      /* Modules */
+      "isolatedModules": true, // For compatibility with Vite's HMR.
+  
+      /* Emit */
+      "declarationDir": "./types",
+      "declaration": true,
+      "declarationMap": true,
+      "emitDeclarationOnly": true,
+      "types": [
+        "vite-plugin-glsl/ext"
+      ],
+  
+      /* Type Checking */
+      "strict": true,
+      "noImplicitAny": true,
+      "noImplicitOverride": true,
+      "noImplicitReturns": true,
+      "noImplicitThis": true,
+      "noPropertyAccessFromIndexSignature": true,
+      "noUncheckedIndexedAccess": false, // Option triggers unexpected errors. See https://github.com/microsoft/TypeScript/issues/55206
+      "noUnusedLocals": true,
+      "noUnusedParameters": true
+    },
+    "include": [
+      "glsl/*",
+      "src/*"
+    ]
+}

@@ -1,0 +1,12 @@
+// IDEs
+*.code-workspace
+.idea/*
+
+// OS & Filesystem
+.DS_Store
+
+// WebDev
+dist/
+types/
+node_modules/
+*.log
