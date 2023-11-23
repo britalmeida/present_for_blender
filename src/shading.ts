@@ -152,7 +152,7 @@ const MAX_SHAPE_CMDS = MAX_CMD_DATA - MAX_STYLE_CMDS;
 const TILE_SIZE = 5;            // Tile side: 32 pixels = 5 bits.
 const MAX_TILES = 4 * 1024 - 1; // Must fit in the tileCmdRanges texture. +1 to fit the end index of the last tile.
 const MAX_CMDS_PER_TILE = 64;
-const TILE_CMDS_BUFFER_LINE = 128;
+const TILE_CMDS_BUFFER_LINE = 256;
 
 
 class UIRenderer {
@@ -194,7 +194,7 @@ class UIRenderer {
   private stateColor = [-1, -1, -1, -1];
   private stateLineWidth = 1.0;
   private stateCorner = 0.0;
-  //private stateChanges = 0;
+  private stateChanges = 0;
 
 
   // Add Primitives.
@@ -460,7 +460,7 @@ class UIRenderer {
       this.stateColor = color;
       this.stateLineWidth = lineWidth ?? 1.0;
       this.stateCorner = corner ?? 0.0;
-      //this.stateChanges++;
+      this.stateChanges++;
 
       let sw = this.styleDataIdx;
       // Check for the required number of style data slots.
@@ -733,7 +733,7 @@ class UIRenderer {
     // Upload the command buffers to the GPU.
     {
       const numCmds = this.cmdDataIdx / 4;
-      //console.log(numCmds, "commands, state changes:", this.stateChanges);
+      console.log(numCmds, "commands, state changes:", this.stateChanges);
 
       gl.activeTexture(gl.TEXTURE0 + textureUnit);
       gl.bindTexture(gl.TEXTURE_2D, this.buffers.cmdBufferTexture);
@@ -827,7 +827,7 @@ class UIRenderer {
     this.stateColor = [-1, -1, -1, -1];
     // Clear the style list.
     this.styleDataIdx = this.styleDataStartIdx;
-    //this.stateChanges = 0;
+    this.stateChanges = 0;
   }
 
   // Initialize the renderer: compile the shader and setup static data.
@@ -875,10 +875,6 @@ class UIRenderer {
           bindUniform(gl, shaderProgram, 'bundle_sampler1'),
           bindUniform(gl, shaderProgram, 'bundle_sampler2'),
         ],
-      },
-      uniformBlocks: {
-        cmdData: gl.getUniformBlockIndex(shaderProgram, "CmdDataBlock"),
-        cmdData1: gl.getUniformBlockIndex(shaderProgram, "CmdDataBlock1"),
       },
     };
 

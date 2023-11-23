@@ -16,7 +16,7 @@ const int CMD_CLIP     = 9;
 // Constants
 const int TILE_SIZE    = 5; // 5bits = 32px
 const int CMD_DATA_BUFFER_LINE = 512;
-const int TILE_CMDS_BUFFER_LINE = 128;
+const int TILE_CMDS_BUFFER_LINE = 256;
 const int TILES_CMD_RANGE_BUFFER_LINE = 4 * 1024; // Single line, addresses all possible tiles.
 
 // Inputs
