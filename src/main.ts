@@ -2,8 +2,8 @@ import './style.css'
 import { UIRenderer } from './shading';
 
 const num_tiers = 6;
-const size_multiplier = 200;
-const sizes = [0.1581, 0.10, 0.0707, 0.05, 0.0316, 0.0224];
+const size_multiplier = 1;
+const sizes = [15.81, 10.00, 7.07, 5.00, 3.16, 2.24];
 const counts = [16, 27, 52, 446, 676, 2487];
 const colors = [
     [0.839, 0.761, 0.839, 1.0], // 0xd6c2d6
@@ -14,6 +14,9 @@ const colors = [
     [1.000, 0.651, 0.302, 1.0], // 0xffa64d
 ];
 
+const rect_widths = [15.81, 6.00, 9.07, 4.00, 3.16, 2.74];
+const rect_heights = rect_widths.map((v, i) => sizes[i]*sizes[i] / v);
+
 console.log("Total presents: ", counts.reduce((a, b) => a + b, 0));
 
 function draw() {
@@ -22,22 +25,57 @@ function draw() {
   const ui = uiRenderer;
   ui.beginFrame();
 
-  let y = h;
+  // Draw present lineup as circles.
+  let y = h - 200;
+  let x = 50;
   for (let tier = 0; tier < num_tiers; tier++) {
-    const num_presents = counts[tier];
     const radius = sizes[tier] * size_multiplier;
-    let x = radius;
     y -= radius;
-    for (let i = 0; i < num_presents; i++) {
+    ui.addCircle([x, y], radius, colors[tier]);
+    y -= radius + 15;
+  }
 
-      ui.addCircle([x, y], radius, colors[tier]);
-      x += radius * 2;
-      if (x > w) {
-        x = radius;
-        y -= radius * 2;
-      }
-    }
+  // Draw present lineup as rounded squares.
+  y = h - 200;
+  x += 50;
+  let corner = 1.0;
+  for (let tier = 0; tier < num_tiers; tier++) {
+    const radius = sizes[tier] * size_multiplier;
     y -= radius;
+    ui.addRect(x - radius, y - radius, radius * 2, radius * 2, colors[tier], corner);
+    y -= radius + 15;
+  }
+
+  // Draw present lineup as rectangles.
+  y = h - 200;
+  x += 50;
+  for (let tier = 0; tier < num_tiers; tier++) {
+    const rect_width = rect_widths[tier] * size_multiplier;
+    const rect_height = rect_heights[tier] * size_multiplier;
+    y -= rect_height;
+    ui.addRect(x - rect_width, y - rect_height, rect_width * 2, rect_height * 2, colors[tier], corner);
+    y -= rect_height + 15;
+  }
+
+  // Draw present lineup as patterned squares.
+  y = h - 200;
+  x += 50;
+  for (let tier = 0; tier < num_tiers; tier++) {
+    const radius = sizes[tier] * size_multiplier;
+    const pattern = 1;
+    y -= radius;
+    ui.addPresent([x, y], radius, pattern, colors[tier], [0.459, 0.549, 0.639, 1.0], corner);
+    y -= radius + 15;
+  }
+
+  // Draw present lineup as textured hexagons.
+  y = h - 200;
+  x += 50;
+  for (let tier = 0; tier < num_tiers; tier++) {
+    const radius = sizes[tier] * size_multiplier;
+    y -= radius;
+    ui.addImage(x - radius, y - radius, radius * 2, radius * 2, eggTextureID, corner);
+    y -= radius + 15;
   }
 
   ui.draw();
@@ -50,3 +88,5 @@ if (canvas === null) {
 }
 
 const uiRenderer: UIRenderer = new UIRenderer(canvas, draw);
+
+const eggTextureID: WebGLTexture = uiRenderer.loadImage('/assets/egg.png');
