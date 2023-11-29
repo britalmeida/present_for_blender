@@ -2,8 +2,6 @@
 import vs_source from '../glsl/vertex.glsl';
 import fs_source from '../glsl/fragment.glsl';
 
-import {fontInconsolataBlobUrl} from '../assets/blobs';
-
 // Shorthands for meaningful types.
 type vec2 = [number, number];
 type vec4 = [number, number, number, number];
@@ -68,68 +66,6 @@ class Rect {
 }
 
 
-// 2D Coordinate system mapped in a rectangular area.
-// Represents Zoom and Pan by mapping coordinates within the rectangular area to
-// coordinates in the View space (e.g. [0-20] -> x2 Zoom -> [0-40]).
-// The rectangular area is additionally used to clip the contents, i.e. with the
-// 2x zoom and no pan, the original [0-10] are shown in the [0-20] space, while
-// the original [10-20] lie outside the View window.
-class View extends Rect {
-  scaleX: number;
-  scaleY: number;
-  offsetX: number;
-  offsetY: number;
-
-  constructor(x: number, y: number, w: number, h: number,
-              scale: vec2, offset: vec2) {
-    super(x, y, w, h);
-    this.scaleX = scale[0];
-    this.scaleY = scale[1];
-    this.offsetX = offset[0];
-    this.offsetY = offset[1];
-  }
-
-  getXYScale(): number {
-    return Math.min(this.scaleX, this.scaleY);
-  }
-
-  // Transform a position value to this View's coordinates, in the horizontal axis.
-  transformPosX(p: number): number {
-    return (p - this.left - this.offsetX) * this.scaleX + this.left;
-  }
-  // Transform a position to this View's coordinates, in the vertical axis.
-  transformPosY(p: number): number {
-    return (p - this.top - this.offsetY) * this.scaleY + this.top;
-  }
-  // Transform a distance value to this View's coordinates, in the horizontal axis.
-  transformDistX(d: number): number {
-    return d * this.scaleX;
-  }
-  // Transform a distance value to this View's coordinates, in the vertical axis.
-  transformDistY(d: number): number {
-    return d * this.scaleY;
-  }
-  // Transform a rectangle to this View's coordinates.
-  transformRect(r: Rect): Rect {
-    return new Rect(
-      this.transformPosX(r.left),
-      this.transformPosY(r.top),
-      this.transformDistX(r.width),
-      this.transformDistY(r.height));
-  }
-
-  // Truncate the given rectangle to the view area (intersection).
-  // The given rectangle should be in the View's coordinates.
-  clampRect(r: Rect): Rect {
-    return new Rect(
-      Math.max(r.left, this.left),
-      Math.max(r.right, this.right),
-      Math.max(r.top, this.top),
-      Math.max(r.bottom, this.bottom));
-  }
-}
-
-
 // Constants shared with the shader configuration.
 // Changes to these values need ot be reflected in the shader as well.
 
@@ -139,7 +75,6 @@ const enum CMD {
   QUAD     = 2,
   RECT     = 3,
   FRAME    = 4,
-  GLYPH    = 5,
   IMAGE    = 6,
   CLIP     = 9,
 }
@@ -163,7 +98,6 @@ class UIRenderer {
   private readonly redrawCallback: () => void;
 
   // Viewport transform
-  private views: View[] = [];
   private viewport = {width: 1, height: 1};
 
   // Shader data
@@ -171,7 +105,6 @@ class UIRenderer {
   private buffers;
   private cmdData = new Float32Array(MAX_CMD_DATA * 4); // Pre-allocate commands of 4 floats (128 width).
   private cmdDataIdx = 0;
-  private glyphCacheTextureID:    WebGLTexture;
   private fallback2DTextureID:    WebGLTexture;
   private fallbackArrayTextureID: WebGLTexture;
   private textureIDs:             WebGLTexture[] = [];
@@ -219,12 +152,11 @@ class UIRenderer {
     bounds.widen(Math.round(width * 0.5 + 0.01));
     if (this.addPrimitiveShape(CMD.LINE, bounds, color, width, 0)) {
       let w = this.cmdDataIdx;
-      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = v.transformPosX(p1[0]);
-      this.cmdData[w++] = v.transformPosY(p1[1]);
-      this.cmdData[w++] = v.transformPosX(p2[0]);
-      this.cmdData[w++] = v.transformPosY(p2[1]);
+      this.cmdData[w++] = p1[0];
+      this.cmdData[w++] = p1[1];
+      this.cmdData[w++] = p2[0];
+      this.cmdData[w++] = p2[1];
 
       this.cmdDataIdx = w;
     }
@@ -237,34 +169,20 @@ class UIRenderer {
     bounds.encapsulate(p4);
     if (this.addPrimitiveShape(CMD.QUAD, bounds, color, 0, 0)) {
       let w = this.cmdDataIdx;
-      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = v.transformPosX(p1[0]);
-      this.cmdData[w++] = v.transformPosY(p1[1]);
-      this.cmdData[w++] = v.transformPosX(p2[0]);
-      this.cmdData[w++] = v.transformPosY(p2[1]);
+      this.cmdData[w++] = p1[0];
+      this.cmdData[w++] = p1[1];
+      this.cmdData[w++] = p2[0];
+      this.cmdData[w++] = p2[1];
       // Data 3 - Shape parameters II
-      this.cmdData[w++] = v.transformPosX(p3[0]);
-      this.cmdData[w++] = v.transformPosY(p3[1]);
-      this.cmdData[w++] = v.transformPosX(p4[0]);
-      this.cmdData[w++] = v.transformPosY(p4[1]);
+      this.cmdData[w++] = p3[0];
+      this.cmdData[w++] = p3[1];
+      this.cmdData[w++] = p4[0];
+      this.cmdData[w++] = p4[1];
       w += 4;
 
       this.cmdDataIdx = w;
     }
-  }
-
-  addTriangle(p1: vec2, p2: vec2, p3: vec2, color: vec4): void {
-    // Repeat the last point, to make the triangle a quad.
-    this.addQuad(p1, p2, p3, p3, color);
-  }
-
-  addDiamond(pos: vec2, width: number, height: number, color: vec4): void {
-    const p1 : vec2 = [pos[0] - width * 0.5, pos[1]];
-    const p2 : vec2 = [pos[0]              , pos[1] - height * 0.5];
-    const p3 : vec2 = [pos[0] + width * 0.5, pos[1]];
-    const p4 : vec2 = [pos[0]              , pos[1] + height * 0.5];
-    this.addQuad(p1, p2, p3, p4, color);
   }
 
   addCircle(p1: vec2, radius: number, color: vec4): void {
@@ -272,50 +190,6 @@ class UIRenderer {
     const bounds = new Rect(p1[0], p1[1], 0, 0);
     bounds.widen(radius);
     this.addRect(bounds.left, bounds.top, bounds.width, bounds.height, color, radius);
-  }
-
-  addCircleFrame(p1: vec2, radius: number, lineWidth: number, color: vec4): void {
-    // A circle is a rectangle with very rounded corners.
-    const bounds = new Rect(p1[0], p1[1], 0, 0);
-    bounds.widen(radius);
-    this.addFrame(bounds.left, bounds.top, bounds.width, bounds.height, lineWidth, color, radius);
-  }
-
-  addText(text: string, p1: vec2, size: number, color: vec4): void {
-    const monoCharWidth = size;
-    let advance = 0;
-    const map = ['!','"','#','$','%','&','\'','(',')','*','+',',','-','.','/','0','1','2','3','4','5','6','7','8','9',':',';','<','=','>','?','@','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','[','\\',']','^','_','`','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','{','|','}','~',' '];
-    const charsPerRow = 20;
-
-    for (const character of text) {
-      if (this.addPrimitiveGlyph(p1[0], p1[1], advance, monoCharWidth, size, color)) {
-        let w = this.cmdDataIdx;
-        // Data 2 - Glyph selection
-        const idx = map.indexOf(character);
-        this.cmdData[w++] = (idx % charsPerRow); // sampler id, address, italic?
-        this.cmdData[w++] = Math.floor(idx / charsPerRow);
-        w += 2;
-
-        this.cmdDataIdx = w;
-      }
-      advance += monoCharWidth - 8;
-    }
-  }
-
-  addGlyph(glyphX: number, glyphY: number, bounds: Rect): void {
-
-    // Skip the bounds clipping and color/style pushing. It should have been done on the calling side.
-
-    // Write the shape command to the command buffer and add it to the tiles with which this shape overlaps.
-    if (this.writeCmdToTiles(CMD.GLYPH, bounds)) {
-      let w = this.cmdDataIdx;
-      // Data 2 - Glyph selection
-      this.cmdData[w++] = glyphX; // sampler id, address, italic?
-      this.cmdData[w++] = glyphY;
-      w += 2;
-
-      this.cmdDataIdx = w;
-    }
   }
 
   addImage(
@@ -488,82 +362,17 @@ class UIRenderer {
   // Private. Write the given shape and its style to the command buffers, if it is in the current view.
   addPrimitiveShape(cmdType: CMD, bounds: Rect, color: vec4, lineWidth: number, corner: number): boolean {
 
-    // Pan and zoom the shape positioning according to the current view.
-    const v = this.getView();
-    bounds = v.transformRect(bounds);
-
     // Clip bounds.
-    if (bounds.right < v.left || bounds.left > v.right
-      || bounds.bottom < v.top || bounds.top > v.bottom) {
+    if (bounds.right < 0 || bounds.left > this.viewport.width
+      || bounds.top < 0 || bounds.bottom > this.viewport.height ) {
       return false;
     }
 
     // Check for a change of style and push a new style if needed.
-    const view_scale = v.getXYScale();
-    this.pushStyleIfNew(color, lineWidth * view_scale, corner * view_scale);
+    this.pushStyleIfNew(color, lineWidth, corner);
 
     // Write the shape command to the command buffer and add it to the tiles with which this shape overlaps.
     return this.writeCmdToTiles(cmdType, bounds);
-  }
-
-  // Private. Write the given shape and its style to the command buffers, if it is in the current view.
-  // As this is text, pan the text with the view, but keep it fixed size.
-  addPrimitiveGlyph(left: number, top: number, advance: number, width: number, height: number, color: vec4): boolean {
-
-    // Pan the glyph according to the current view so that it moves,
-    // but it keeps a fixed size instead of responding to zoom.
-    const v = this.getView();
-    const bounds = new Rect(v.transformPosX(left) + advance, v.transformPosY(top), width, height);
-
-    // Clip bounds.
-    if (bounds.right < v.left || bounds.left > v.right
-      || bounds.bottom < v.top || bounds.top > v.bottom) {
-      return false;
-    }
-
-    // Check for a change of style and push a new style if needed.
-    this.pushStyleIfNew(color, null, null);
-
-    // Write the shape command to the command buffer and add it to the tiles with which this shape overlaps.
-    return this.writeCmdToTiles(CMD.GLYPH, bounds);
-  }
-
-  // Private. Add a clip command to the global command buffer.
-  addClipRect(left: number, top: number, right: number, bottom: number): boolean {
-    // Write clip rect information for the shader.
-
-    // Get the w(rite) index for the global command buffer.
-    let w = this.cmdDataIdx;
-    // Check for the required number of free command slots.
-    if (w/4 + 2 > MAX_SHAPE_CMDS) {
-      console.warn("Too many shapes to draw.", w/4 + 2, "of", MAX_SHAPE_CMDS);
-      return false;
-    }
-
-    // Add the command index to all the tiles. Tiles outside the clip rect bounds also need it.
-    for (let y = 0; y < this.num_tiles_y; y++) {
-      for (let x = 0; x < this.num_tiles_x; x++) {
-        const tile_idx = y * this.num_tiles_x + x;
-        const num_tile_cmds = ++this.cmdsPerTile[tile_idx][0];
-        if (num_tile_cmds > MAX_CMDS_PER_TILE - 2) {
-          console.warn("Too many shapes in a single tile");
-          return false;
-        }
-        this.cmdsPerTile[tile_idx][num_tile_cmds] = w / 4;
-      }
-    }
-
-    // Data 0 - Header
-    this.cmdData[w++] = CMD.CLIP;
-    w += 3;
-    // Data 1 - Bounds
-    this.cmdData[w++] = left;
-    this.cmdData[w++] = top;
-    this.cmdData[w++] = right;
-    this.cmdData[w++] = bottom;
-    this.cmdDataIdx = w;
-
-    return true;
   }
 
   // Image loading from a URL to a GPU texture.
@@ -652,26 +461,6 @@ class UIRenderer {
     return textureID;
   }
 
-  // Views
-
-  getView(): View {
-    // The renderer should have pushed an initial default full-canvas view. The array should not be empty.
-    return this.views[this.views.length - 1];
-  }
-
-  pushView(x: number, y: number, w: number, h: number, scale: vec2, offset: vec2): View {
-    const view = new View(x, y, w, h, scale, offset);
-    this.views.push(view);
-    this.addClipRect(x +1, y +1, x + w -1, y + h -1);
-    return view;
-  }
-
-  popView(): void {
-    this.views.pop();
-    const v = this.getView();
-    this.addClipRect(v.left, v.top, v.right, v.bottom);
-  }
-
   // Render Loop
 
   // Initialize the state for a new frame
@@ -697,9 +486,6 @@ class UIRenderer {
     for (let i = 0; i < this.num_tiles_n; i++) {
       this.cmdsPerTile[i] = new Uint16Array(MAX_CMDS_PER_TILE);
     }
-
-    // Push a fallback full-canvas view with no scale and no offset.
-    this.pushView(0, 0, this.viewport.width, this.viewport.height, [1, 1], [0, 0]);
   }
 
   // Draw a frame with the current primitive commands.
@@ -789,11 +575,6 @@ class UIRenderer {
       gl.uniform1i(this.shaderInfo.uniforms.tileCmdRangesBufferTex, textureUnit++);
     }
 
-    // Bind the glyph cache.
-    gl.activeTexture(gl.TEXTURE0 + textureUnit);
-    gl.bindTexture(gl.TEXTURE_2D, this.glyphCacheTextureID);
-    gl.uniform1i(this.shaderInfo.uniforms.textGlyphSampler, textureUnit++);
-
     // Bind the isolated textures.
     textureUnit = 5;
     for (let i = 0; i < this.shaderInfo.uniforms.samplers.length; i++) {
@@ -827,7 +608,6 @@ class UIRenderer {
     this.textureIDs = [];
     this.textureBundleIDs = [];
     // Clear the state.
-    this.views = [];
     this.stateColor = [-1, -1, -1, -1];
     // Clear the style list.
     this.styleDataIdx = this.styleDataStartIdx;
@@ -866,7 +646,6 @@ class UIRenderer {
         cmdBufferTex: bindUniform(gl, shaderProgram, 'cmd_data'),
         tileCmdRangesBufferTex: bindUniform(gl, shaderProgram, 'tile_cmd_ranges'),
         tileCmdsBufferTex: bindUniform(gl, shaderProgram, 'tile_cmds'),
-        textGlyphSampler: bindUniform(gl, shaderProgram, 'text_glyph_sampler'),
         samplers: [
           bindUniform(gl, shaderProgram, 'sampler0'),
           bindUniform(gl, shaderProgram, 'sampler1'),
@@ -910,12 +689,6 @@ class UIRenderer {
         0, 0, 0, // x,y,slice offsets.
         1, 1, 1, // width, height, number of slices to write.
         gl.RGBA, gl.UNSIGNED_BYTE, pixel_data);
-    }
-
-    // Create the Glyph Cache
-    {
-      gl.activeTexture(gl.TEXTURE0);
-      this.glyphCacheTextureID = this.loadImage(fontInconsolataBlobUrl);
     }
 
     // Generate GPU buffer IDs that will be filled with data later for the shader to use.
@@ -1034,5 +807,5 @@ function loadShader(gl: WebGL2RenderingContext, shader_type: GLenum, source_code
 }
 
 
-export { Rect, View, UIRenderer };
+export { Rect, UIRenderer };
 export type { vec2, vec4 };
