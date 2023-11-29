@@ -9,6 +9,7 @@ const int CMD_LINE     = 1;
 const int CMD_QUAD     = 2;
 const int CMD_RECT     = 3;
 const int CMD_FRAME    = 4;
+const int CMD_ORI_RECT = 5;
 const int CMD_IMAGE    = 6;
 
 // Constants
@@ -78,6 +79,16 @@ vec4 sample_texture(int sampler_ID, vec2 tex_coord, float slice) {
   else if (sampler_ID == 12) return texture(bundle_sampler2, vec3(tex_coord.x, tex_coord.y, slice));
   return vec4(0.8, 0.0, 0.3, 0.9); // Visibly show attempted usage of unknown sampler_ID.
 }
+
+mat2 rotate(float angle) {
+  float s = sin(angle);
+  float c = cos(angle);
+  return mat2(
+    c, -s,
+    s, c
+  );
+}
+
 
 // SDF functions for parametric shapes
 // based on https://iquilezles.org/www/articles/distfunctions/distfunctions.htm
@@ -227,6 +238,23 @@ void main() {
       float dist_to_outer_rect = dist_to_round_rect(frag_coord, outer_rect, corner_radius);
       float dist_to_inner_rect = dist_to_round_rect(frag_coord, inner_rect, inner_corner_radius);
       shape_dist = max(dist_to_outer_rect, 1.0 - dist_to_inner_rect);
+
+    } else if (cmd_type == CMD_ORI_RECT) {
+
+      vec4 shape_def1 = get_cmd_data(data_idx++);
+      vec4 shape_def2 = get_cmd_data(data_idx++);
+      if (clip_dist > 1.0) continue;
+
+      vec2 pos = shape_def1.xy;
+      float angle = acos(dot(shape_def1.zw, vec2(0.0, 1.0)));
+      // Rotate each corner with the center at the origin.
+      // Then translate the corners back to be around the rectangle center.
+      vec2 p1 = pos + rotate(angle) * vec2(-shape_def2.x, +shape_def2.y);
+      vec2 p2 = pos + rotate(angle) * vec2(+shape_def2.x, +shape_def2.y);
+      vec2 p3 = pos + rotate(angle) * vec2(+shape_def2.x, -shape_def2.y);
+      vec2 p4 = pos + rotate(angle) * vec2(-shape_def2.x, -shape_def2.y);
+
+      shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
 
     } else if (cmd_type == CMD_IMAGE) {
 

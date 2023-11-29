@@ -75,8 +75,8 @@ const enum CMD {
   QUAD     = 2,
   RECT     = 3,
   FRAME    = 4,
+  ORI_RECT = 5,
   IMAGE    = 6,
-  CLIP     = 9,
 }
 
 // Rendering context
@@ -162,6 +162,25 @@ class UIRenderer {
     }
   }
 
+  addOrientedRect(pos: vec2, ori: vec2, width: number, height: number, color: vec4) {
+    const bounds = new Rect(pos[0], pos[1], 0, 0);
+    bounds.widen(Math.sqrt(width*width + height*height));
+    if (this.addPrimitiveShape(CMD.ORI_RECT, bounds, color, 0, 0)) {
+      let w = this.cmdDataIdx;
+      // Data 2 - Shape parameters
+      this.cmdData[w++] = pos[0];
+      this.cmdData[w++] = pos[1];
+      this.cmdData[w++] = ori[0];
+      this.cmdData[w++] = ori[1];
+      // Data 3 - Shape parameters II
+      this.cmdData[w++] = width;
+      this.cmdData[w++] = height;
+      w += 2;
+
+      this.cmdDataIdx = w;
+    }
+  }
+
   addQuad(p1: vec2, p2: vec2, p3: vec2, p4: vec2, color: vec4): void {
     const bounds = new Rect(p1[0], p1[1], 0, 0);
     bounds.encapsulate(p2);
@@ -179,7 +198,6 @@ class UIRenderer {
       this.cmdData[w++] = p3[1];
       this.cmdData[w++] = p4[0];
       this.cmdData[w++] = p4[1];
-      w += 4;
 
       this.cmdDataIdx = w;
     }

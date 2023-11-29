@@ -32,6 +32,7 @@ const heights_px =  sizes.map((v) => v * size_multiplier);
 
 let ids: Array<number> = [];
 let positions: Array<vec2> = [];
+let orientations: Array<vec2> = [];
 let velocities: Array<vec2> = [];
 let accells: Array<vec2> = [];
 
@@ -62,12 +63,14 @@ function generate_initial_positions()
     x += radius;
     positions.push([x * px_to_m, y * px_to_m]);
     velocities.push([0.0, -1]);
+    orientations.push([0, 1]);
     accells.push([0.0, gravity]);
     ids.push(tier);
     contacts.push(new Array());
 
     positions.push([x * px_to_m, 100 * px_to_m]);
     velocities.push([0.0, 1.0]);
+    orientations.push([0, 1]);
     accells.push([0.0, 0.0]);
     ids.push(tier);
     contacts.push(new Array());
@@ -158,7 +161,7 @@ function draw() {
   for (let i = 0; i < positions.length; i++) {
     const tier = ids[i];
     const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
-    ui.addCircle(p_px, widths_px[tier], colors[tier]);
+    ui.addOrientedRect(p_px, orientations[i], widths_px[tier], heights_px[tier], colors[tier]);
   }
 
   ui.draw();
