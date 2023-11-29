@@ -35,6 +35,22 @@ let positions: Array<vec2> = [];
 let velocities: Array<vec2> = [];
 let accells: Array<vec2> = [];
 
+class Contact {
+  toi: number;
+  other_body_id: number;
+  contact_point: vec2;
+  surface_normal: vec2;
+
+  constructor(toi: number, other_body_id: number, contact_point: vec2, surface_normal: vec2) {
+    this.toi = toi;
+    this.other_body_id = other_body_id;
+    this.contact_point = contact_point;
+    this.surface_normal = surface_normal;
+  }
+}
+
+let contacts: Array<Array<Contact>> = [];
+
 const gravity = -9.81; // m/s2
 
 function generate_initial_positions()
@@ -45,17 +61,60 @@ function generate_initial_positions()
     const radius = widths_px[tier];
     x += radius;
     positions.push([x * px_to_m, y * px_to_m]);
-    velocities.push([0.0, 0.0]);
+    velocities.push([0.0, -1]);
     accells.push([0.0, gravity]);
     ids.push(tier);
+    contacts.push(new Array());
+
+    positions.push([x * px_to_m, 100 * px_to_m]);
+    velocities.push([0.0, 1.0]);
+    accells.push([0.0, 0.0]);
+    ids.push(tier);
+    contacts.push(new Array());
+
     x += radius + 15;
   }
   console.log("positions in meters", positions);
 }
 
+function check_intersections() {
+  for (let i = 0; i < positions.length; i++) {
+    for (let j = i+1; j < positions.length; j++) {
+
+      const tier1 = ids[i];
+      const tier2 = ids[j];
+      const radius1_m = heights_px[tier1] * px_to_m;
+      const radius2_m = heights_px[tier2] * px_to_m;
+      const pos1 = positions[i];
+      const pos2 = positions[j];
+
+      if (pos1[1] - pos2[1] < radius1_m + radius2_m)
+      {
+        console.log("CONTACT!", pos2[1] - pos1[1]);
+        contacts[i].push( new Contact(0, j, pos1, [0, 1]) );
+        contacts[j].push( new Contact(0, i, pos1, [0, -1]) );
+      }
+    }
+  }
+}
+
+function determine_forces(i: number) {
+  const b = 10;
+
+  let net_force = 0;
+  for (let c = 0; c < contacts[i].length; c++) {
+    const contact = contacts[i][c];
+    const i2 = contact.other_body_id;
+    net_force += -b * velocities[i2][1];
+    console.log("net force", i, net_force);
+  }
+  return net_force;
+}
 
 function update_physics(delta_time_ms: number) {
   const delta_time_s = delta_time_ms / 1000;
+
+  check_intersections();
 
   // Update physics.
   for (let i = 0; i < positions.length; i++) {
@@ -68,17 +127,19 @@ function update_physics(delta_time_ms: number) {
     const prev_v = velocities[i][1];
     const prev_a = accells[i][1];
 
+    const f_net = determine_forces(i);
+
     // Velocity Verlet
     const new_p = prev_p + prev_v * delta_time_s + 0.5*prev_a*delta_time_s*delta_time_s;
     const half_stepped_v = prev_v + 0.5*prev_a*delta_time_s;
-    const new_a = (gravity*mass) / mass;
+    const new_a = 0;//((gravity*mass) + f_net) / mass;
     const new_v = half_stepped_v + 0.5*new_a*delta_time_s;
 
     if (new_p > half_height_m) {
       positions[i][1] = new_p;
       velocities[i][1] = new_v;
       accells[i][1] = new_a;
-      console.log("p: ", new_p, "v: ", new_v, " a: ", new_a);
+      console.log("p: ", new_p.toFixed(2), "v: ", new_v.toFixed(2), " a: ", new_a.toFixed(2));
     } else {
       // Give it a rest.
       positions[i][1] = half_height_m;
@@ -107,7 +168,7 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 20; // total simulation steps
+let t = 40; // total simulation steps
 function tick_simulation(current_time: number) {
   // Calcuate the time that has elapsed since the last frame
   const delta_time = current_time - start_time;
