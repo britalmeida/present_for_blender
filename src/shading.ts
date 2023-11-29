@@ -737,7 +737,7 @@ class UIRenderer {
     // Upload the command buffers to the GPU.
     {
       const numCmds = this.cmdDataIdx / 4;
-      console.log(numCmds, "commands, state changes:", this.stateChanges);
+      //console.log(numCmds, "commands, state changes:", this.stateChanges);
 
       gl.activeTexture(gl.TEXTURE0 + textureUnit);
       gl.bindTexture(gl.TEXTURE_2D, this.buffers.cmdBufferTexture);

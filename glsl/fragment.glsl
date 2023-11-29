@@ -134,9 +134,8 @@ float dist_to_round_rect(vec2 pos, vec4 rect, float corner_radius) {
 
 void main() {
   // OpenGL provides the fragment coordinate in pixels where (0,0) is bottom-left.
-  // Because the renderer and client UI code has (0,0) top-left, flip the y.
   // Use pixel top-left coordinates instead of center. (0.5, 0.5) -> (0.0, 0.0)
-  vec2 frag_coord = vec2(gl_FragCoord.x, viewport_size.y - gl_FragCoord.y);
+  vec2 frag_coord = vec2(gl_FragCoord.x, gl_FragCoord.y);
   frag_coord -= 0.5;
 
   // Default fragment background color and opacity.

@@ -1,11 +1,14 @@
 import './style.css'
-import { UIRenderer } from './shading';
+import { UIRenderer, vec2, vec4 } from './shading';
+
+const canvas = document.querySelector<HTMLCanvasElement>('#canvas-view');
+if (canvas === null) {
+  throw new Error("present_for_blender could not find a canvas element with id 'canvas-view'");
+}
 
 const num_tiers = 6;
-const size_multiplier = 1;
-const sizes = [15.81, 10.00, 7.07, 5.00, 3.16, 2.24];
 const counts = [16, 27, 52, 446, 676, 2487];
-const colors = [
+const colors: Array<vec4> = [
     [0.839, 0.761, 0.839, 1.0], // 0xd6c2d6
     [0.239, 0.302, 0.361, 1.0], // 0x3d4d5c
     [0.459, 0.549, 0.639, 1.0], // 0x758ca3
@@ -14,79 +17,116 @@ const colors = [
     [1.000, 0.651, 0.302, 1.0], // 0xffa64d
 ];
 
-const rect_widths = [15.81, 6.00, 9.07, 4.00, 3.16, 2.74];
-const rect_heights = rect_widths.map((v, i) => sizes[i]*sizes[i] / v);
+const masses = [250, 100, 50, 25, 10, 5]; // in euros :)
+const masses_kg =  masses.map((v) => v / 100.0);
 
-console.log("Total presents: ", counts.reduce((a, b) => a + b, 0));
+const m_to_px = 100;
+const px_to_m = 1 / m_to_px;
+const size_multiplier = 1;
+const sizes = masses.map((v) => Math.sqrt(v));
+//let rect_widths = [15.81, 6.00, 9.07, 4.00, 3.16, 2.74];
+//rect_widths =  rect_widths.map((v) => v * size_multiplier);
+//const rect_heights = rect_widths.map((v, i) => sizes[i]*sizes[i]*size_multiplier / v);
+const widths_px =  sizes.map((v) => v * size_multiplier); // use equal or rectangle sides
+const heights_px =  sizes.map((v) => v * size_multiplier);
+
+let ids: Array<number> = [];
+let positions: Array<vec2> = [];
+let velocities: Array<vec2> = [];
+let accells: Array<vec2> = [];
+
+const gravity = -9.81; // m/s2
+
+function generate_initial_positions()
+{
+  let y = 300;
+  let x = 10;
+  for (let tier = 0; tier < 1; tier++) {
+    const radius = widths_px[tier];
+    x += radius;
+    positions.push([x * px_to_m, y * px_to_m]);
+    velocities.push([0.0, 0.0]);
+    accells.push([0.0, gravity]);
+    ids.push(tier);
+    x += radius + 15;
+  }
+  console.log("positions in meters", positions);
+}
+
+
+function update_physics(delta_time_ms: number) {
+  const delta_time_s = delta_time_ms / 1000;
+
+  // Update physics.
+  for (let i = 0; i < positions.length; i++) {
+    const tier = ids[i];
+    const half_height_m = heights_px[tier] * px_to_m;
+    const mass = masses_kg[tier];
+
+    // Calculate only on y to not bother with multiplying "vectors" in JS.
+    const prev_p = positions[i][1];
+    const prev_v = velocities[i][1];
+    const prev_a = accells[i][1];
+
+    // Velocity Verlet
+    const new_p = prev_p + prev_v * delta_time_s + 0.5*prev_a*delta_time_s*delta_time_s;
+    const half_stepped_v = prev_v + 0.5*prev_a*delta_time_s;
+    const new_a = (gravity*mass) / mass;
+    const new_v = half_stepped_v + 0.5*new_a*delta_time_s;
+
+    if (new_p > half_height_m) {
+      positions[i][1] = new_p;
+      velocities[i][1] = new_v;
+      accells[i][1] = new_a;
+      console.log("p: ", new_p, "v: ", new_v, " a: ", new_a);
+    } else {
+      // Give it a rest.
+      positions[i][1] = half_height_m;
+      velocities[i][1] = 0.0;
+      accells[i][1] = 0.0;
+    }
+  }
+}
 
 function draw() {
-  const w = canvas.width;
-  const h = canvas.height;
+
   const ui = uiRenderer;
   ui.beginFrame();
 
   // Draw present lineup as circles.
-  let y = h - 200;
-  let x = 50;
-  for (let tier = 0; tier < num_tiers; tier++) {
-    const radius = sizes[tier] * size_multiplier;
-    y -= radius;
-    ui.addCircle([x, y], radius, colors[tier]);
-    y -= radius + 15;
-  }
-
-  // Draw present lineup as rounded squares.
-  y = h - 200;
-  x += 50;
-  let corner = 1.0;
-  for (let tier = 0; tier < num_tiers; tier++) {
-    const radius = sizes[tier] * size_multiplier;
-    y -= radius;
-    ui.addRect(x - radius, y - radius, radius * 2, radius * 2, colors[tier], corner);
-    y -= radius + 15;
-  }
-
-  // Draw present lineup as rectangles.
-  y = h - 200;
-  x += 50;
-  for (let tier = 0; tier < num_tiers; tier++) {
-    const rect_width = rect_widths[tier] * size_multiplier;
-    const rect_height = rect_heights[tier] * size_multiplier;
-    y -= rect_height;
-    ui.addRect(x - rect_width, y - rect_height, rect_width * 2, rect_height * 2, colors[tier], corner);
-    y -= rect_height + 15;
-  }
-
-  // Draw present lineup as patterned squares.
-  y = h - 200;
-  x += 50;
-  for (let tier = 0; tier < num_tiers; tier++) {
-    const radius = sizes[tier] * size_multiplier;
-    const pattern = 1;
-    y -= radius;
-    ui.addPresent([x, y], radius, pattern, colors[tier], [0.459, 0.549, 0.639, 1.0], corner);
-    y -= radius + 15;
-  }
-
-  // Draw present lineup as textured hexagons.
-  y = h - 200;
-  x += 50;
-  for (let tier = 0; tier < num_tiers; tier++) {
-    const radius = sizes[tier] * size_multiplier;
-    y -= radius;
-    ui.addImage(x - radius, y - radius, radius * 2, radius * 2, eggTextureID, corner);
-    y -= radius + 15;
+  for (let i = 0; i < positions.length; i++) {
+    const tier = ids[i];
+    const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
+    ui.addCircle(p_px, widths_px[tier], colors[tier]);
   }
 
   ui.draw();
 }
 
 
-const canvas = document.querySelector<HTMLCanvasElement>('#canvas-view');
-if (canvas === null) {
-  throw new Error("present_for_blender could not find a canvas element with id 'canvas-view'");
+const fps = 30;
+const frame_dur = Math.floor(1000/fps);
+let start_time = 0;
+let t = 20; // total simulation steps
+function tick_simulation(current_time: number) {
+  // Calcuate the time that has elapsed since the last frame
+  const delta_time = current_time - start_time;
+
+  // Tick a frame only after enough time accumulated.
+  if (delta_time >= frame_dur) {
+    start_time = current_time;
+
+    update_physics(delta_time);
+    draw();
+
+    console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
+    t--;
+  }
+  
+  if (t > 0)
+    requestAnimationFrame(tick_simulation);
 }
 
+generate_initial_positions();
 const uiRenderer: UIRenderer = new UIRenderer(canvas, draw);
-
-const eggTextureID: WebGLTexture = uiRenderer.loadImage('/assets/egg.png');
+tick_simulation(frame_dur);
