@@ -247,12 +247,14 @@ void main() {
 
       vec2 pos = shape_def1.xy;
       float angle = acos(dot(shape_def1.zw, vec2(0.0, 1.0)));
+      float half_width = shape_def2.x * 0.5;
+      float half_height = shape_def2.y * 0.5;
       // Rotate each corner with the center at the origin.
       // Then translate the corners back to be around the rectangle center.
-      vec2 p1 = pos + rotate(angle) * vec2(-shape_def2.x, +shape_def2.y);
-      vec2 p2 = pos + rotate(angle) * vec2(+shape_def2.x, +shape_def2.y);
-      vec2 p3 = pos + rotate(angle) * vec2(+shape_def2.x, -shape_def2.y);
-      vec2 p4 = pos + rotate(angle) * vec2(-shape_def2.x, -shape_def2.y);
+      vec2 p1 = pos + rotate(angle) * vec2(-half_width, +half_height);
+      vec2 p2 = pos + rotate(angle) * vec2(+half_width, +half_height);
+      vec2 p3 = pos + rotate(angle) * vec2(+half_width, -half_height);
+      vec2 p4 = pos + rotate(angle) * vec2(-half_width, -half_height);
 
       shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
 

@@ -1,6 +1,8 @@
 import './style.css'
 import { UIRenderer, vec2, vec4 } from './shading';
 
+import { sim_data } from "../assets/sim_data";
+
 const canvas = document.querySelector<HTMLCanvasElement>('#canvas-view');
 if (canvas === null) {
   throw new Error("present_for_blender could not find a canvas element with id 'canvas-view'");
@@ -17,6 +19,7 @@ const colors: Array<vec4> = [
     [1.000, 0.651, 0.302, 1.0], // 0xffa64d
 ];
 
+const tier_to_idx: { [k: number] : number; } = { 250: 0, 100: 1, 50: 2, 25: 3, 10: 4, 5: 5};
 const masses = [250, 100, 50, 25, 10, 5]; // in euros :)
 const masses_kg =  masses.map((v) => v / 100.0);
 
@@ -54,16 +57,36 @@ let contacts: Array<Array<Contact>> = [];
 
 const gravity = -9.81; // m/s2
 
+function load_initial_positions()
+{
+  for (const ob of sim_data) {
+    if (ob.label === 'border')
+      continue;
+
+    // Convert the information in the label to the indexes of the structures here.
+    const tier_value = Number(ob.label.split("-")[0]);
+    const tier_id = tier_to_idx[tier_value];
+
+    // Create an object and it's initial simulation values
+    positions.push([ob.position.x * px_to_m, (canvas.height - ob.position.y) * px_to_m]);
+    velocities.push([0.0, 0.0]);
+    orientations.push([Math.cos(45), Math.sin(45)]);
+    accells.push([0.0, 0.0]);
+    ids.push(tier_id);
+    contacts.push(new Array());
+  }
+}
+
 function generate_initial_positions()
 {
   let y = 300;
   let x = 10;
   for (let tier = 0; tier < 1; tier++) {
-    const radius = widths_px[tier];
+    const radius = widths_px[tier] / 2;
     x += radius;
     positions.push([x * px_to_m, y * px_to_m]);
     velocities.push([0.0, -1]);
-    orientations.push([0, 1]);
+    orientations.push([0.5, 0.5]);
     accells.push([0.0, gravity]);
     ids.push(tier);
     contacts.push(new Array());
@@ -86,8 +109,8 @@ function check_intersections() {
 
       const tier1 = ids[i];
       const tier2 = ids[j];
-      const radius1_m = heights_px[tier1] * px_to_m;
-      const radius2_m = heights_px[tier2] * px_to_m;
+      const radius1_m = heights_px[tier1] * 0.5 * px_to_m;
+      const radius2_m = heights_px[tier2] * 0.5 * px_to_m;
       const pos1 = positions[i];
       const pos2 = positions[j];
 
@@ -122,7 +145,7 @@ function update_physics(delta_time_ms: number) {
   // Update physics.
   for (let i = 0; i < positions.length; i++) {
     const tier = ids[i];
-    const half_height_m = heights_px[tier] * px_to_m;
+    const half_height_m = heights_px[tier] * 0.5 * px_to_m;
     const mass = masses_kg[tier];
 
     // Calculate only on y to not bother with multiplying "vectors" in JS.
@@ -171,7 +194,7 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 40; // total simulation steps
+let t = 0; // total simulation steps
 function tick_simulation(current_time: number) {
   // Calcuate the time that has elapsed since the last frame
   const delta_time = current_time - start_time;
@@ -191,6 +214,7 @@ function tick_simulation(current_time: number) {
     requestAnimationFrame(tick_simulation);
 }
 
-generate_initial_positions();
+//generate_initial_positions();
+load_initial_positions();
 const uiRenderer: UIRenderer = new UIRenderer(canvas, draw);
 tick_simulation(frame_dur);

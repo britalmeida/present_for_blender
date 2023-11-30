@@ -164,7 +164,9 @@ class UIRenderer {
 
   addOrientedRect(pos: vec2, ori: vec2, width: number, height: number, color: vec4) {
     const bounds = new Rect(pos[0], pos[1], 0, 0);
-    bounds.widen(Math.sqrt(width*width + height*height));
+    const halfWidth = width*0.5+1;
+    const halfHeight = height*0.5+1;
+    bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
     if (this.addPrimitiveShape(CMD.ORI_RECT, bounds, color, 0, 0)) {
       let w = this.cmdDataIdx;
       // Data 2 - Shape parameters
