@@ -3,9 +3,9 @@ import { UIRenderer, vec2, vec4 } from './shading';
 
 import { sim_data } from "../assets/sim_data";
 
-const canvas = document.querySelector<HTMLCanvasElement>('#canvas-view');
+const canvas = document.querySelector<HTMLCanvasElement>('#campaign-gifts-pile');
 if (canvas === null) {
-  throw new Error("present_for_blender could not find a canvas element with id 'canvas-view'");
+  throw new Error("present_for_blender could not find a canvas element with id 'campaign-gifts-pile'");
 }
 
 const num_tiers = 6;
