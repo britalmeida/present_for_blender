@@ -70,7 +70,7 @@ function load_initial_positions()
     // Create an object and it's initial simulation values
     positions.push([ob.position.x * px_to_m, (canvas.height - ob.position.y) * px_to_m]);
     velocities.push([0.0, 0.0]);
-    orientations.push([Math.cos(45), Math.sin(45)]);
+    orientations.push([Math.cos(ob.angle), Math.sin(ob.angle)]);
     accells.push([0.0, 0.0]);
     ids.push(tier_id);
     contacts.push(new Array());
