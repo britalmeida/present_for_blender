@@ -26,19 +26,20 @@ function draw() {
   ui.beginFrame();
 
   // Draw present lineup as circles.
-  let y = h - 200;
+  let y = h - 20;
   let x = 50;
+  let corner = 4.0;
   for (let tier = 0; tier < num_tiers; tier++) {
     const radius = sizes[tier] * size_multiplier;
     y -= radius;
-    ui.addCircle([x, y], radius, colors[tier]);
+    ui.addRect(x - radius, y - radius, radius * 2, radius * 2, colors[tier], corner);
     y -= radius + 15;
   }
 
   // Draw present lineup as rounded squares.
-  y = h - 200;
+  y = h - 20;
   x += 50;
-  let corner = 1.0;
+  corner = 0.0;
   for (let tier = 0; tier < num_tiers; tier++) {
     const radius = sizes[tier] * size_multiplier;
     y -= radius;
@@ -47,8 +48,9 @@ function draw() {
   }
 
   // Draw present lineup as rectangles.
-  y = h - 200;
+  y = h - 20;
   x += 50;
+  corner = 1.0;
   for (let tier = 0; tier < num_tiers; tier++) {
     const rect_width = rect_widths[tier] * size_multiplier;
     const rect_height = rect_heights[tier] * size_multiplier;
@@ -58,18 +60,44 @@ function draw() {
   }
 
   // Draw present lineup as patterned squares.
-  y = h - 200;
+  y = h - 20;
   x += 50;
   for (let tier = 0; tier < num_tiers; tier++) {
     const radius = sizes[tier] * size_multiplier;
     const pattern = 1;
     y -= radius;
     ui.addPresent([x, y], radius, pattern, colors[tier], [0.459, 0.549, 0.639, 1.0], corner);
+    if (tier === 1) {
+      const color = [0.359, 0.49, 0.539, 1.0];
+      y -=3;
+      ui.addCircle([x-3.5, y-5], 2, color);
+      ui.addCircle([x+3.5, y-5], 2, color);
+      ui.addCircle([x, y], 2, color);
+      ui.addCircle([x-7, y], 2, color);
+      ui.addCircle([x+7, y], 2, color);
+      ui.addCircle([x-3.5, y+5], 2, color);
+      ui.addCircle([x+3.5, y+5], 2, color);
+      ui.addCircle([x, y+10], 2, color);
+      ui.addCircle([x-7, y+10], 2, color);
+      ui.addCircle([x+7, y+10], 2, color);
+      y +=3;
+    }
+    else if (tier === 0) {
+      const color = [0.459, 0.549, 0.839, 1.0];
+      ui.addRect(x+2, y-radius, 3, radius*2, color);
+      ui.addRect(x-radius, y-7, radius * 2, 3, color);
+    }
+    else if (tier === 2) {
+      const color = [0.75, 0.75, 0.75, 1.0];
+      ui.addRect(x-4.5, y-radius, 1.5, radius*2, color);
+      ui.addRect(x+3.5, y-radius, 1.5, radius*2, color);
+      ui.addRect(x-0.5, y-radius, 1.5, radius*2, color);
+    }
     y -= radius + 15;
   }
 
   // Draw present lineup as textured hexagons.
-  y = h - 200;
+  y = h - 20;
   x += 50;
   for (let tier = 0; tier < num_tiers; tier++) {
     const radius = sizes[tier] * size_multiplier;
