@@ -68,11 +68,12 @@ function load_initial_positions()
     const tierValue = Number(ob.label.split("-")[0]);
     const tierIdx = masses.indexOf(tierValue);
 
-    // Create an object and it's initial simulation values
+    // Create an object and its initial simulation values.
+    // Convert from matter.js (0,0) at top-left with y down and angles along x
+    // to (0,0) at bottom-left with y up with angles along y.
     positions.push([ob.position.x * px_to_m, (canvas.height - ob.position.y) * px_to_m]);
     velocities.push([0.0, 0.0]);
-    orientations.push([Math.cos(ob.angle), -Math.sin(ob.angle)]);
-    accells.push([0.0, 0.0]);
+    orientations.push([Math.sin(ob.angle), Math.cos(ob.angle)]);
     ids.push(tierIdx);
     contacts.push(new Array());
   }
@@ -184,7 +185,11 @@ function draw() {
   for (let i = 0; i < positions.length; i++) {
     const tier = ids[i];
     const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
-    ui.addOrientedRect(p_px, orientations[i], heightsPx[tier], widthsPx[tier], colors[tier]);
+    ui.addOrientedRect(p_px, orientations[i], widthsPx[tier], heightsPx[tier], colors[tier]);
+    // Draw body origins.
+    const axisSize = 10;
+    ui.addLine(p_px, [p_px[0]+orientations[i][1]*axisSize, p_px[1]-orientations[i][0]*axisSize], 1, [1.0, 0.0, 0.0, 1.0]);
+    ui.addLine(p_px, [p_px[0]+orientations[i][0]*axisSize, p_px[1]+orientations[i][1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
   }
 
   ui.draw();

@@ -28,49 +28,49 @@ class Rect {
   constructor(x: number, y: number, w: number, h: number) {
     this.left = x;
     this.right = x + w;
-    this.top = y;
-    this.bottom = y + h;
+    this.top = y + h;
+    this.bottom = y;
     this.width = w;
     this.height = h;
   }
 
   contains (x: number, y: number): boolean {
     return this.left <= x && x <= this.right &&
-        this.top  <= y && y <= this.bottom;
+        this.bottom  <= y && y <= this.top;
   }
   intersects (other: Rect): boolean {
     return this.left <= other.right && other.left <= this.right &&
-        this.top <= other.bottom && other.top <= this.bottom;
+        this.bottom <= other.top && other.bottom <= this.top;
   }
 
   widen(val: number): void {
     this.left -= val;
-    this.top -= val;
+    this.bottom -= val;
     this.width += val * 2.0;
     this.height += val * 2.0;
     this.right = this.left + this.width;
-    this.bottom = this.top + this.height;
+    this.top = this.bottom + this.height;
   }
   widened(val: number): Rect {
-    return new Rect(this.left - val, this.top - val,
+    return new Rect(this.left - val, this.bottom - val,
         this.width + val * 2.0, this.height + val * 2.0);
   }
   shrink(val: number): void {
     this.left += val;
-    this.top += val;
+    this.bottom += val;
     this.width -= val * 2.0;
     this.height -= val * 2.0;
     this.right = this.left + this.width;
-    this.bottom = this.top + this.height;
+    this.top = this.bottom + this.height;
   }
 
   encapsulate(point: vec2): void {
     this.left = Math.min(this.left, point[0]);
     this.right = Math.max(this.right, point[0]);
-    this.top = Math.min(this.top, point[1]);
-    this.bottom = Math.max(this.bottom, point[1]);
+    this.bottom = Math.min(this.bottom, point[1]);
+    this.top = Math.max(this.top, point[1]);
     this.width = this.right - this.left;
-    this.height = this.bottom - this.top;
+    this.height = this.top - this.bottom;
   }
 }
 
@@ -150,8 +150,8 @@ class UIRenderer {
     this.addPrimitiveShape(CMD.RECT, bounds, color, 0, cornerWidth);
   }
 
-  addFrame(left: number, top: number, width: number, height: number, lineWidth: number, color: vec4, cornerWidth = 0): void {
-    const bounds = new Rect(left, top, width, height);
+  addFrame(left: number, bottom: number, width: number, height: number, lineWidth: number, color: vec4, cornerWidth = 0): void {
+    const bounds = new Rect(left, bottom, width, height);
     this.addPrimitiveShape(CMD.FRAME, bounds, color, lineWidth, cornerWidth);
   }
 
@@ -218,7 +218,7 @@ class UIRenderer {
     // A circle is a rectangle with very rounded corners.
     const bounds = new Rect(p1[0], p1[1], 0, 0);
     bounds.widen(radius);
-    this.addRect(bounds.left, bounds.top, bounds.width, bounds.height, color, radius);
+    this.addRect(bounds.left, bounds.bottom, bounds.width, bounds.height, color, radius);
   }
 
   addImage(
@@ -321,13 +321,13 @@ class UIRenderer {
 
     // Add the command index to the command list of all the tiles that might draw it.
     {
-      // Get the shape´s bounds in tile index space.
-      const shape_tile_start_y = Math.max(bounds.top >> TILE_SIZE, 0);
+      // Get the shape's bounds in tile index space.
+      const shape_tile_start_y = Math.max(bounds.bottom >> TILE_SIZE, 0);
       const shape_tile_start_x = Math.max(bounds.left >> TILE_SIZE, 0);
       const shape_tile_end_x = Math.min(bounds.right >> TILE_SIZE, this.num_tiles_x - 1);
-      const shape_tile_end_y = Math.min(bounds.bottom >> TILE_SIZE, this.num_tiles_y - 1);
-      //console.log(cmdType, w/4, "bounds l,r,t,b:", bounds.left, bounds.right, bounds.top, bounds.bottom,
-      //    "tiles l,r,t,b:", shape_tile_start_x, shape_tile_end_x, shape_tile_start_y, shape_tile_end_y)
+      const shape_tile_end_y = Math.min(bounds.top >> TILE_SIZE, this.num_tiles_y - 1);
+      //console.log(cmdType, w/4, "bounds l,r,b,t:", bounds.left, bounds.right, bounds.bottom, bounds.top,
+      //    "tiles l,r,b,t:", shape_tile_start_x, shape_tile_end_x, shape_tile_start_y, shape_tile_end_y)
 
       for (let y = shape_tile_start_y; y <= shape_tile_end_y; y++) {
         for (let x = shape_tile_start_x; x <= shape_tile_end_x; x++) {
@@ -348,9 +348,9 @@ class UIRenderer {
     w += 2;
     // Data 1 - Bounds
     this.cmdData[w++] = bounds.left;
-    this.cmdData[w++] = bounds.top;
-    this.cmdData[w++] = bounds.right;
     this.cmdData[w++] = bounds.bottom;
+    this.cmdData[w++] = bounds.right;
+    this.cmdData[w++] = bounds.top;
     // Update write index
     this.cmdDataIdx = w;
 
