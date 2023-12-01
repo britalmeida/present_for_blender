@@ -6,7 +6,6 @@ precision highp sampler2DArray;
 
 // Command types
 const int CMD_LINE     = 1;
-const int CMD_QUAD     = 2;
 const int CMD_RECT     = 3;
 const int CMD_FRAME    = 4;
 const int CMD_ORI_RECT = 5;
@@ -25,9 +24,6 @@ uniform usampler2D tile_cmds; // Commands per tile: packed sequence of cmd_data 
 uniform usampler2D tile_cmd_ranges; // Where each tile's data is in tile_cmds. List of start indexes.
 
 // Textures
-uniform sampler2DArray bundle_sampler0;
-uniform sampler2DArray bundle_sampler1;
-uniform sampler2DArray bundle_sampler2;
 uniform sampler2D sampler0;
 uniform sampler2D sampler1;
 uniform sampler2D sampler2;
@@ -74,9 +70,6 @@ vec4 sample_texture(int sampler_ID, vec2 tex_coord, float slice) {
   else if (sampler_ID == 7) return texture(sampler2, tex_coord);
   else if (sampler_ID == 8) return texture(sampler3, tex_coord);
   else if (sampler_ID == 9) return texture(sampler4, tex_coord);
-  else if (sampler_ID == 10) return texture(bundle_sampler0, vec3(tex_coord.x, tex_coord.y, slice));
-  else if (sampler_ID == 11) return texture(bundle_sampler1, vec3(tex_coord.x, tex_coord.y, slice));
-  else if (sampler_ID == 12) return texture(bundle_sampler2, vec3(tex_coord.x, tex_coord.y, slice));
   return vec4(0.8, 0.0, 0.3, 0.9); // Visibly show attempted usage of unknown sampler_ID.
 }
 
@@ -205,14 +198,6 @@ void main() {
 
       float line_radius = line_width * 0.5;
       shape_dist = dist_to_line(frag_coord, vec2(shape_def1.xy), vec2(shape_def1.zw), line_radius);
-
-    } else if (cmd_type == CMD_QUAD) {
-
-      vec4 shape_def1 = get_cmd_data(data_idx++);
-      vec4 shape_def2 = get_cmd_data(data_idx++);
-      if (clip_dist > 1.0) continue;
-
-      shape_dist = dist_to_quad(frag_coord, vec2(shape_def1.xy), vec2(shape_def1.zw), vec2(shape_def2.xy), vec2(shape_def2.zw));
 
     } else if (cmd_type == CMD_RECT) {
 

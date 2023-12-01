@@ -81,7 +81,6 @@ class Rect {
 // Command types
 const enum CMD {
   LINE     = 1,
-  QUAD     = 2,
   RECT     = 3,
   FRAME    = 4,
   ORI_RECT = 5,
@@ -115,9 +114,7 @@ class UIRenderer {
   private cmdData = new Float32Array(MAX_CMD_DATA * 4); // Pre-allocate commands of 4 floats (128 width).
   private cmdDataIdx = 0;
   private fallback2DTextureID:    WebGLTexture;
-  private fallbackArrayTextureID: WebGLTexture;
   private textureIDs:             WebGLTexture[] = [];
-  private textureBundleIDs:       WebGLTexture[] = [];
   private loadingTextureIDs:      WebGLTexture[] = [];
   // Tiles
   private num_tiles_x = 1;
@@ -192,35 +189,6 @@ class UIRenderer {
     }
   }
 
-  addQuad(p1: vec2, p2: vec2, p3: vec2, p4: vec2, color: vec4): void {
-    const bounds = new Rect(p1[0], p1[1], 0, 0);
-    bounds.encapsulate(p2);
-    bounds.encapsulate(p3);
-    bounds.encapsulate(p4);
-    if (this.addPrimitiveShape(CMD.QUAD, bounds, color, 0, 0)) {
-      let w = this.cmdDataIdx;
-      // Data 2 - Shape parameters
-      this.cmdData[w++] = p1[0];
-      this.cmdData[w++] = p1[1];
-      this.cmdData[w++] = p2[0];
-      this.cmdData[w++] = p2[1];
-      // Data 3 - Shape parameters II
-      this.cmdData[w++] = p3[0];
-      this.cmdData[w++] = p3[1];
-      this.cmdData[w++] = p4[0];
-      this.cmdData[w++] = p4[1];
-
-      this.cmdDataIdx = w;
-    }
-  }
-
-  addCircle(p1: vec2, radius: number, color: vec4): void {
-    // A circle is a rectangle with very rounded corners.
-    const bounds = new Rect(p1[0], p1[1], 0, 0);
-    bounds.widen(radius);
-    this.addRect(bounds.left, bounds.bottom, bounds.width, bounds.height, color, radius);
-  }
-
   addImage(
     left: number, top: number, width: number, height: number,
     textureID: WebGLTexture | undefined | null, cornerWidth = 0, alpha = 1.0): void {
@@ -239,26 +207,6 @@ class UIRenderer {
 
     // Add the image command.
     this.addImageInternal(left, top, width, height, samplerIdx, 0, cornerWidth, alpha);
-  }
-
-  addImageFromBundle(
-    left: number, top: number, width: number, height: number,
-    textureID: WebGLTexture | undefined | null, slice: number, cornerWidth = 0, alpha = 1.0): void {
-
-    // Request the texture image as in use for this frame, if not in the bind list already.
-    const textureRequestIdx = this.pushTextureID(textureID, this.textureBundleIDs);
-
-    // Get the shader sampler ID for the bundle texture, or -1 for the loading and -2 for error textures.
-    let samplerIdx = 10 + textureRequestIdx; // Bundle images start at samplerID 10.
-    if (textureRequestIdx < 0) {
-      samplerIdx = textureRequestIdx; // Keep loading/error indexes.
-    } else if (this.textureBundleIDs.length >= this.shaderInfo.uniforms.bundleSamplers.length) {
-      console.warn("Maximum number of image bundles exceeded. Increase supported amount in code?");
-      samplerIdx = -2; // Show images out of sampler count budget as visible problems with the error texture.
-    }
-
-    // Add the image command.
-    this.addImageInternal(left, top, width, height, samplerIdx, slice, cornerWidth, alpha);
   }
 
   // Internal functions to write data to the command buffers.
@@ -444,52 +392,6 @@ class UIRenderer {
     return textureID;
   }
 
-  // Create a GPU texture object (returns the ID, usable immediately) and asynchronously load
-  // the image data from all the given urls as slices. All images must have the same resolution
-  // and can be indexed later in the order they were given.
-  loadImageBundle(urls: string[], resolution: vec2): WebGLTexture {
-    const gl = this.gl;
-    const redrawCallback = this.redrawCallback;
-    let loadedSlices = 0;
-
-    // Create a texture object with the given resolution and a slice per given URL.
-    // Use GPU memory of immutable size.
-    console.log("Creating texture bundle (", resolution[0], "x", resolution[1], ") with", urls.length, "textures");
-    const textureID = gl.createTexture() as WebGLTexture; // Generate texture object ID.
-    gl.bindTexture(gl.TEXTURE_2D_ARRAY, textureID); // Create texture object with ID.
-    gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.RGBA8, resolution[0], resolution[1], urls.length);
-
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    // Create a JS image per given URL that asynchronously loads it and transfers
-    // the image data to its slice on the GPU array texture once that is done.
-    for (let i = 0; i < urls.length; i++) {
-      const image = new Image();
-      image.crossOrigin = "anonymous";
-
-      image.onload = function () {
-        gl.bindTexture(gl.TEXTURE_2D_ARRAY, textureID);
-        gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0,
-          0, 0, i, // 0 xy offset, start writing at slide i.
-          resolution[0], resolution[1], 1, // 1 full-size slice.
-          gl.RGBA, gl.UNSIGNED_BYTE, image);
-
-        // Trigger a redraw of the component view that uses this renderer.
-        loadedSlices++;
-        if (loadedSlices === urls.length) {
-          redrawCallback();
-        }
-      };
-
-      image.src = urls[i];
-    }
-
-    return textureID;
-  }
-
   // Render Loop
 
   // Initialize the state for a new frame
@@ -612,13 +514,6 @@ class UIRenderer {
       gl.bindTexture(gl.TEXTURE_2D, textureID); // Bind the texture to the active TextureUnit
       gl.uniform1i(this.shaderInfo.uniforms.samplers[i], textureUnit++); // Set shader sampler to use TextureUnit X
     }
-    // Bind the "bundled" textures (texture arrays).
-    for (let i = 0; i < this.shaderInfo.uniforms.bundleSamplers.length; i++) {
-      const textureID = i < this.textureBundleIDs.length ? this.textureBundleIDs[i] : this.fallbackArrayTextureID;
-      gl.activeTexture(gl.TEXTURE0 + textureUnit);
-      gl.bindTexture(gl.TEXTURE_2D_ARRAY, textureID);
-      gl.uniform1i(this.shaderInfo.uniforms.bundleSamplers[i], textureUnit++);
-    }
 
     // Draw
     gl.drawArrays(gl.TRIANGLE_STRIP,
@@ -635,7 +530,6 @@ class UIRenderer {
     // Clear the draw list.
     this.cmdDataIdx = 0;
     this.textureIDs = [];
-    this.textureBundleIDs = [];
     // Clear the state.
     this.stateColor = [-1, -1, -1, -1];
     // Clear the style list.
@@ -682,11 +576,6 @@ class UIRenderer {
           bindUniform(gl, shaderProgram, 'sampler3'),
           bindUniform(gl, shaderProgram, 'sampler4'),
         ],
-        bundleSamplers : [
-          bindUniform(gl, shaderProgram, 'bundle_sampler0'),
-          bindUniform(gl, shaderProgram, 'bundle_sampler1'),
-          bindUniform(gl, shaderProgram, 'bundle_sampler2'),
-        ],
       },
     };
 
@@ -708,16 +597,6 @@ class UIRenderer {
         0, 0, 1, 1, // x,y offsets, width, height.
         gl.RGBA, gl.UNSIGNED_BYTE, // Source format and type.
         pixel_data); // Single green pixel.
-
-      // 2D array texture ("bundle").
-      this.fallbackArrayTextureID = gl.createTexture() as WebGLTexture;
-      gl.bindTexture(gl.TEXTURE_2D_ARRAY, this.fallbackArrayTextureID);
-      gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, gl.RGBA8,
-        1, 1, 1); // Width, height, slices.
-      gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0,
-        0, 0, 0, // x,y,slice offsets.
-        1, 1, 1, // width, height, number of slices to write.
-        gl.RGBA, gl.UNSIGNED_BYTE, pixel_data);
     }
 
     // Generate GPU buffer IDs that will be filled with data later for the shader to use.
