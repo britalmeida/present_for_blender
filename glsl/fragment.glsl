@@ -40,7 +40,6 @@ float scalar_triple_product(vec2 a, vec2 b, vec3 c) {
   return dot(base_normal, c);
 }
 float dot2(vec2 v) { return dot(v, v); }
-float dot2(vec3 v) { return dot(v, v); }
 
 vec4 get_cmd_data(int data_idx) {
   ivec2 tex_coord = ivec2(data_idx % CMD_DATA_BUFFER_LINE, int(data_idx / CMD_DATA_BUFFER_LINE));
