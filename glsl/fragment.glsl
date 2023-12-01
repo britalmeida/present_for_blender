@@ -25,10 +25,6 @@ uniform usampler2D tile_cmd_ranges; // Where each tile's data is in tile_cmds. L
 
 // Textures
 uniform sampler2D sampler0;
-uniform sampler2D sampler1;
-uniform sampler2D sampler2;
-uniform sampler2D sampler3;
-uniform sampler2D sampler4;
 
 // Color output
 out vec4 fragColor;
@@ -61,15 +57,13 @@ uint get_tile_cmd_range_start(int tile_idx) {
   return texelFetch(tile_cmd_ranges, tex_coord, 0).r;
 }
 
-vec4 sample_texture(int sampler_ID, vec2 tex_coord, float slice) {
-  if      (sampler_ID == -2) return vec4(0.3, 0.3, 0.3, 0.8); // Grey fallback texture while images are still loading.
-  else if (sampler_ID == -1) return vec4(0.7, 0.0, 0.3, 0.9); // Pink error texture for visibility when something went wrong.
-  else if (sampler_ID == 5) return texture(sampler0, tex_coord);
-  else if (sampler_ID == 6) return texture(sampler1, tex_coord);
-  else if (sampler_ID == 7) return texture(sampler2, tex_coord);
-  else if (sampler_ID == 8) return texture(sampler3, tex_coord);
-  else if (sampler_ID == 9) return texture(sampler4, tex_coord);
-  return vec4(0.8, 0.0, 0.3, 0.9); // Visibly show attempted usage of unknown sampler_ID.
+vec4 sample_texture(int sampler_ID, vec2 tex_coord, int slice) {
+  int psize = 16;
+  //ivec2 tex_coord2 = ivec2(psize * slice + int(tex_coord.x) % psize, psize + int(tex_coord.y) % psize);
+  ivec2 tex_coord2 = ivec2(
+    psize * (slice + 1) + int(tex_coord.x) % psize -1,
+    psize + int(tex_coord.y) % psize -1);
+  return texelFetch(sampler0, tex_coord2, 0);
 }
 
 mat2 rotate(float angle) {
@@ -240,27 +234,22 @@ void main() {
       vec2 p3 = pos + rotate(angle) * vec2(+half_width, -half_height);
       vec2 p4 = pos + rotate(angle) * vec2(-half_width, -half_height);
 
-      shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
-
-    } else if (cmd_type == CMD_IMAGE) {
-
-      vec4 shape_def = get_cmd_data(data_idx++);
-      if (clip_dist > 1.0) continue;
-
-      // Shape is the same as the rectangle with rounded corners.
       vec4 rect = vec4(shape_bounds.x, shape_bounds.y, shape_bounds.z - 1.0, shape_bounds.w - 1.0);
-      shape_dist = dist_to_round_rect(frag_coord, rect, corner_radius);
+      shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
 
       // Color of each fragment is given by a texture lookup.
       float alpha = shape_color.a;
-      int sampler_idx = int(shape_def[0]);
-      float slice = shape_def[1]; // Used for texture arrays only.
-      vec2 tex_coord = vec2(
-        (frag_coord.x - rect.x) / (rect.z - rect.x),
-        (frag_coord.y - rect.y) / (rect.w - rect.y));
-      shape_color = sample_texture(sampler_idx, tex_coord, slice);
-      shape_color.a *= alpha;
+      int sampler_idx = 5;
+      int patternIdx = int(shape_def2.z);
+      vec2 offset = pos + shape_def2.xy * 0.5;
+      //vec2 tex_coord =  - offset + rotate(angle) * (offset + frag_coord);// / viewport_size;
+      vec2 tex_coord = frag_coord - offset;
+      shape_color = sample_texture(sampler_idx, tex_coord, patternIdx);
 
+      //int psize = 16;
+      //ivec2 tex_coord2 = ivec2(psize * 1 + int(tex_coord.x) % psize, psize + int(tex_coord.y) % psize);
+      //shape_color = vec4(float(tex_coord2.x)/16.0, float(tex_coord2.y)/16.0, 0.0, 1.0);
+      shape_color.a *= alpha;
     }
 
     float shape_coverage_mask = clamp(1.0 - shape_dist, 0.0, 1.0);

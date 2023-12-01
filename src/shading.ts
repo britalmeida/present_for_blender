@@ -84,7 +84,6 @@ const enum CMD {
   RECT     = 3,
   FRAME    = 4,
   ORI_RECT = 5,
-  IMAGE    = 6,
 }
 
 // Rendering context
@@ -113,9 +112,8 @@ class UIRenderer {
   private buffers;
   private cmdData = new Float32Array(MAX_CMD_DATA * 4); // Pre-allocate commands of 4 floats (128 width).
   private cmdDataIdx = 0;
-  private fallback2DTextureID:    WebGLTexture;
-  private textureIDs:             WebGLTexture[] = [];
-  private loadingTextureIDs:      WebGLTexture[] = [];
+  private textureID:              WebGLTexture;
+
   // Tiles
   private num_tiles_x = 1;
   private num_tiles_y = 1;
@@ -168,7 +166,7 @@ class UIRenderer {
     }
   }
 
-  addOrientedRect(pos: vec2, ori: vec2, width: number, height: number, color: vec4) {
+  addOrientedRect(pos: vec2, ori: vec2, width: number, height: number, color: vec4, patternIdx: number) {
     const bounds = new Rect(pos[0], pos[1], 0, 0);
     const halfWidth = width*0.5+1;
     const halfHeight = height*0.5+1;
@@ -183,77 +181,15 @@ class UIRenderer {
       // Data 3 - Shape parameters II
       this.cmdData[w++] = width;
       this.cmdData[w++] = height;
-      w += 2;
+      this.cmdData[w++] = patternIdx;
+      w += 1;
 
       this.cmdDataIdx = w;
     }
   }
 
-  addImage(
-    left: number, top: number, width: number, height: number,
-    textureID: WebGLTexture | undefined | null, cornerWidth = 0, alpha = 1.0): void {
-
-    // Request the texture image as in use for this frame, if not in the bind list already.
-    const textureRequestIdx = this.pushTextureID(textureID, this.textureIDs);
-
-    // Get the shader sampler ID for the standalone texture, or -1 for the loading and -2 for error textures.
-    let samplerIdx = 5 + textureRequestIdx; // Standalone images start at samplerID 5.
-    if (textureRequestIdx < 0) {
-      samplerIdx = textureRequestIdx; // Keep loading/error indexes.
-    } else if (this.textureIDs.length >= this.shaderInfo.uniforms.samplers.length) {
-      console.warn("Maximum number of single images exceeded. Images need to be bundled.");
-      samplerIdx = -2; // Show images out of sampler count budget as visible problems with the error texture.
-    }
-
-    // Add the image command.
-    this.addImageInternal(left, top, width, height, samplerIdx, 0, cornerWidth, alpha);
-  }
 
   // Internal functions to write data to the command buffers.
-
-  // Private. Add the given texture ID to the list of textures that will be used this frame, return its index.
-  pushTextureID(textureID: WebGLTexture | undefined | null, texturesToDraw: WebGLTexture[]): number {
-    // The requested texture is invalid (not created?).
-    if (!textureID) {
-      // Don't push a new used texture to the bind list, we should fall back to the error one instead.
-      return -2;
-    }
-
-    const idx = texturesToDraw.indexOf(textureID);
-    if (idx !== -1) {
-      // This texture was already requested.
-      return idx;
-    }
-    else {
-      // This texture was not requested yet.
-      
-      if (this.loadingTextureIDs.includes(textureID)) {
-        // The requested texture is still loading.
-        // Don't push a new used texture to the bind list, we should fall back to the default texture instead.
-        return -1;
-      } else {
-        // Valid texture which hasn't been requested for this frame yet. Add it to the bind list.
-        return texturesToDraw.push(textureID) - 1;
-      }
-    }
-  }
-
-  // Private. Helper function to add an image command, either bundled or standalone.
-  addImageInternal(
-    left: number, top: number, width: number, height: number,
-    samplerIdx: number, slice: number, cornerWidth: number, alpha: number): void {
-
-    const bounds = new Rect(left, top, width, height);
-    if (this.addPrimitiveShape(CMD.IMAGE, bounds, [1.0, 1.0, 1.0, alpha], 0, cornerWidth)) {
-      let w = this.cmdDataIdx;
-      // Data 2 - Shape parameters
-      this.cmdData[w++] = samplerIdx;
-      this.cmdData[w++] = slice;
-      w += 2;
-
-      this.cmdDataIdx = w;
-    }
-  }
 
   // Private. Write the given shape to the global command buffer and add it to the tiles with which it overlaps.
   // Returns false if it was unable to allocate the command.
@@ -359,11 +295,7 @@ class UIRenderer {
   loadImage(url: string): WebGLTexture {
     const gl = this.gl;
     const redrawCallback = this.redrawCallback;
-    const loadingTextureIDs = this.loadingTextureIDs;
-
-    const textureID = gl.createTexture() as WebGLTexture; // Generate texture object ID.
-    gl.bindTexture(gl.TEXTURE_2D, textureID); // Create texture object with ID.
-    loadingTextureIDs.push(textureID);
+    const textureID = this.textureID;
 
     // Create a JS image that asynchronously loads the given url and transfers
     // the image data to GPU once that is done.
@@ -373,16 +305,7 @@ class UIRenderer {
       gl.bindTexture(gl.TEXTURE_2D, textureID);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, // Mipmap level, internal format.
         gl.RGBA, gl.UNSIGNED_BYTE, image); // Source format and type.
-
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-      // Remove texture ID from the set known to be loading.
-      const idx = loadingTextureIDs.indexOf(textureID);
-      if (idx > -1) { loadingTextureIDs.splice(idx, 1); }
+      disableMipMapping(gl);
 
       // Trigger a redraw of the component view that uses this renderer.
       redrawCallback();
@@ -506,14 +429,11 @@ class UIRenderer {
       gl.uniform1i(this.shaderInfo.uniforms.tileCmdRangesBufferTex, textureUnit++);
     }
 
-    // Bind the isolated textures.
+    // Bind the patterns texture.
     textureUnit = 5;
-    for (let i = 0; i < this.shaderInfo.uniforms.samplers.length; i++) {
-      const textureID = i < this.textureIDs.length ? this.textureIDs[i] : this.fallback2DTextureID;
-      gl.activeTexture(gl.TEXTURE0 + textureUnit); // Set context to use TextureUnit X
-      gl.bindTexture(gl.TEXTURE_2D, textureID); // Bind the texture to the active TextureUnit
-      gl.uniform1i(this.shaderInfo.uniforms.samplers[i], textureUnit++); // Set shader sampler to use TextureUnit X
-    }
+    gl.activeTexture(gl.TEXTURE0 + textureUnit); // Set context to use TextureUnit X
+    gl.bindTexture(gl.TEXTURE_2D, this.textureID); // Bind the texture to the active TextureUnit
+    gl.uniform1i(this.shaderInfo.uniforms.sampler0, textureUnit); // Set shader sampler to use TextureUnit X
 
     // Draw
     gl.drawArrays(gl.TRIANGLE_STRIP,
@@ -529,7 +449,6 @@ class UIRenderer {
 
     // Clear the draw list.
     this.cmdDataIdx = 0;
-    this.textureIDs = [];
     // Clear the state.
     this.stateColor = [-1, -1, -1, -1];
     // Clear the style list.
@@ -551,7 +470,6 @@ class UIRenderer {
     this.gl = gl;
 
 
-
     // Load the shader code onto the GPU and compile shaders.
     const shaderProgram = initShaderProgram(gl, vs_source, fs_source);
     if (shaderProgram === null) {
@@ -569,35 +487,13 @@ class UIRenderer {
         cmdBufferTex: bindUniform(gl, shaderProgram, 'cmd_data'),
         tileCmdRangesBufferTex: bindUniform(gl, shaderProgram, 'tile_cmd_ranges'),
         tileCmdsBufferTex: bindUniform(gl, shaderProgram, 'tile_cmds'),
-        samplers: [
-          bindUniform(gl, shaderProgram, 'sampler0'),
-          bindUniform(gl, shaderProgram, 'sampler1'),
-          bindUniform(gl, shaderProgram, 'sampler2'),
-          bindUniform(gl, shaderProgram, 'sampler3'),
-          bindUniform(gl, shaderProgram, 'sampler4'),
-        ],
+        sampler0: bindUniform(gl, shaderProgram, 'sampler0'),
       },
     };
 
-    // Create default fallback textures.
-    {
-      // Create 1px textures to use as fallback for unused shader sampler binding points.
-      // These textures should never show. If they do, we are using an unused shader sampler?
-      gl.activeTexture(gl.TEXTURE0);
-      const pixel_data = new Uint8Array([0, 180, 20, 210]); // Single green pixel.
-
-      // 2D texture.
-      this.fallback2DTextureID = gl.createTexture() as WebGLTexture; // Generate texture object ID.
-      gl.bindTexture(gl.TEXTURE_2D, this.fallback2DTextureID); // Create texture object with ID.
-      gl.texStorage2D(gl.TEXTURE_2D, // Allocate immutable storage.
-        1, // Number of mip map levels.
-        gl.RGBA8, // GPU internal format.
-        1, 1); // Width, height.
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, // Transfer data
-        0, 0, 1, 1, // x,y offsets, width, height.
-        gl.RGBA, gl.UNSIGNED_BYTE, // Source format and type.
-        pixel_data); // Single green pixel.
-    }
+    // Generate the texture IDs.
+    this.textureID = gl.createTexture() as WebGLTexture; // Generate texture object ID.
+    gl.bindTexture(gl.TEXTURE_2D, this.textureID); // Create texture object with ID.
 
     // Generate GPU buffer IDs that will be filled with data later for the shader to use.
     this.buffers = {

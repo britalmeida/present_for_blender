@@ -185,10 +185,10 @@ function draw() {
   for (let i = 0; i < positions.length; i++) {
     const tier = ids[i];
     const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
-    ui.addOrientedRect(p_px, orientations[i], widthsPx[tier], heightsPx[tier], colors[tier]);
+    ui.addOrientedRect(p_px, orientations[i], widthsPx[tier], heightsPx[tier], colors[tier], tier);
   }
   // Draw body origins.
-  {
+  /*{
     const axisSize = 10;
     for (let i = 0; i < positions.length; i++) {
       const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
@@ -198,7 +198,7 @@ function draw() {
       const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+orientations[i][0]*axisSize, p_px[1]+orientations[i][1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
     }
-  }
+  }*/
 
   ui.draw();
 }
@@ -230,4 +230,6 @@ function tick_simulation(current_time: number) {
 //generate_initial_positions();
 load_initial_positions();
 const uiRenderer: UIRenderer = new UIRenderer(canvas, draw);
+const patternsTextureID: WebGLTexture = uiRenderer.loadImage('/assets/patterns.png');
+
 tick_simulation(frame_dur);
