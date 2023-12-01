@@ -6,6 +6,15 @@ import fs_source from '../glsl/fragment.glsl';
 type vec2 = [number, number];
 type vec4 = [number, number, number, number];
 
+// Color conversion utility function.
+export function hexToRGBFloat(hex: string): vec4 {
+  return [
+    parseInt(hex.slice(1, 3), 16) / 255,
+    parseInt(hex.slice(3, 5), 16) / 255,
+    parseInt(hex.slice(5, 7), 16) / 255,
+    1.0
+  ];
+}
 
 // Representation of a rectangle for geometry operations.
 class Rect {

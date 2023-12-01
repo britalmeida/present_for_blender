@@ -1,37 +1,38 @@
 import './style.css'
-import { UIRenderer, vec2, vec4 } from './shading';
+import { UIRenderer, vec2, vec4, hexToRGBFloat } from './shading';
 
-import { sim_data } from "../assets/sim_data";
+import { simData } from "../assets/sim_data";
 
 const canvas = document.querySelector<HTMLCanvasElement>('#campaign-gifts-pile');
 if (canvas === null) {
   throw new Error("present_for_blender could not find a canvas element with id 'campaign-gifts-pile'");
 }
 
-const num_tiers = 6;
-const counts = [16, 27, 52, 446, 676, 2487];
-const colors: Array<vec4> = [
+/*const colors: Array<vec4> = [
     [0.839, 0.761, 0.839, 1.0], // 0xd6c2d6
     [0.239, 0.302, 0.361, 1.0], // 0x3d4d5c
     [0.459, 0.549, 0.639, 1.0], // 0x758ca3
     [1.000, 0.820, 0.102, 1.0], // 0xffd11a
     [0.820, 0.820, 0.878, 1.0], // 0xd1d1e0
     [1.000, 0.651, 0.302, 1.0], // 0xffa64d
-];
+];*/
+const colors: Array<vec4> = simData.presentColors.map((v) => hexToRGBFloat(v));
+// Bg color to hardcode in the fragment shader.
+//console.log(hexToRGBFloat(simData.colorBg));
 
-const tier_to_idx: { [k: number] : number; } = { 250: 0, 100: 1, 50: 2, 25: 3, 10: 4, 5: 5};
-const masses = [250, 100, 50, 25, 10, 5]; // in euros :)
+const masses = [5, 10, 25, 50, 100, 250]; // in euros :)
 const masses_kg =  masses.map((v) => v / 100.0);
 
 const m_to_px = 100;
 const px_to_m = 1 / m_to_px;
-const size_multiplier = 1;
-const sizes = masses.map((v) => Math.sqrt(v));
-//let rect_widths = [15.81, 6.00, 9.07, 4.00, 3.16, 2.74];
-//rect_widths =  rect_widths.map((v) => v * size_multiplier);
-//const rect_heights = rect_widths.map((v, i) => sizes[i]*sizes[i]*size_multiplier / v);
-const widths_px =  sizes.map((v) => v * size_multiplier); // use equal or rectangle sides
-const heights_px =  sizes.map((v) => v * size_multiplier);
+const scale = simData.scale;
+const sidesPx = masses.map((v) => Math.sqrt(v) * scale);
+// const widthVariancePercent = [0.0, 0.7, 0.3, 0.5, 0.25, 0.1]; // How much longer is one side vs the other.
+                                                            // e.g. 0.5 = one side is 50% longer than the other.
+// const widthVariancePercent = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Use this one for squares.
+const widthVariancePercent = simData.widthVariancePercent;
+const widthsPx =  sidesPx.map((v, i) => v + v * widthVariancePercent[i]);
+const heightsPx = widthsPx.map((v, i) => sidesPx[i]*sidesPx[i] / v);
 
 let ids: Array<number> = [];
 let positions: Array<vec2> = [];
@@ -59,20 +60,20 @@ const gravity = -9.81; // m/s2
 
 function load_initial_positions()
 {
-  for (const ob of sim_data) {
+  for (const ob of simData.presents) {
     if (ob.label === 'border')
       continue;
 
     // Convert the information in the label to the indexes of the structures here.
-    const tier_value = Number(ob.label.split("-")[0]);
-    const tier_id = tier_to_idx[tier_value];
+    const tierValue = Number(ob.label.split("-")[0]);
+    const tierIdx = masses.indexOf(tierValue);
 
     // Create an object and it's initial simulation values
     positions.push([ob.position.x * px_to_m, (canvas.height - ob.position.y) * px_to_m]);
     velocities.push([0.0, 0.0]);
-    orientations.push([Math.cos(ob.angle), Math.sin(ob.angle)]);
+    orientations.push([Math.cos(ob.angle), -Math.sin(ob.angle)]);
     accells.push([0.0, 0.0]);
-    ids.push(tier_id);
+    ids.push(tierIdx);
     contacts.push(new Array());
   }
 }
@@ -82,7 +83,7 @@ function generate_initial_positions()
   let y = 300;
   let x = 10;
   for (let tier = 0; tier < 1; tier++) {
-    const radius = widths_px[tier] / 2;
+    const radius = widthsPx[tier] / 2;
     x += radius;
     positions.push([x * px_to_m, y * px_to_m]);
     velocities.push([0.0, -1]);
@@ -109,8 +110,8 @@ function check_intersections() {
 
       const tier1 = ids[i];
       const tier2 = ids[j];
-      const radius1_m = heights_px[tier1] * 0.5 * px_to_m;
-      const radius2_m = heights_px[tier2] * 0.5 * px_to_m;
+      const radius1_m = heightsPx[tier1] * 0.5 * px_to_m;
+      const radius2_m = heightsPx[tier2] * 0.5 * px_to_m;
       const pos1 = positions[i];
       const pos2 = positions[j];
 
@@ -145,7 +146,7 @@ function update_physics(delta_time_ms: number) {
   // Update physics.
   for (let i = 0; i < positions.length; i++) {
     const tier = ids[i];
-    const half_height_m = heights_px[tier] * 0.5 * px_to_m;
+    const half_height_m = heightsPx[tier] * 0.5 * px_to_m;
     const mass = masses_kg[tier];
 
     // Calculate only on y to not bother with multiplying "vectors" in JS.
@@ -180,11 +181,10 @@ function draw() {
   const ui = uiRenderer;
   ui.beginFrame();
 
-  // Draw present lineup as circles.
   for (let i = 0; i < positions.length; i++) {
     const tier = ids[i];
     const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
-    ui.addOrientedRect(p_px, orientations[i], widths_px[tier], heights_px[tier], colors[tier]);
+    ui.addOrientedRect(p_px, orientations[i], heightsPx[tier], widthsPx[tier], colors[tier]);
   }
 
   ui.draw();
@@ -203,7 +203,7 @@ function tick_simulation(current_time: number) {
   if (delta_time >= frame_dur) {
     start_time = current_time;
 
-    update_physics(delta_time);
+    //update_physics(delta_time);
     draw();
 
     console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));

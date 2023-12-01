@@ -148,7 +148,7 @@ void main() {
 
   // Default fragment background color and opacity.
   // Will be overwritten if this pixel is determined to be inside shapes.
-  vec3 px_color = vec3(0.1, 0.1, 0.1);
+  vec3 px_color = vec3(0.9176470588235294, 0.9529411764705882, 1.0);
   float px_alpha = 1.0;
 
   vec4 view_clip_rect = vec4(0, 0, viewport_size.x, viewport_size.y);
