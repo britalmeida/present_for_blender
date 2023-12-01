@@ -246,7 +246,7 @@ void main() {
       if (clip_dist > 1.0) continue;
 
       vec2 pos = shape_def1.xy;
-      float angle = acos(dot(shape_def1.zw, vec2(0.0, 1.0)));
+      float angle = acos(dot(shape_def1.zw, vec2(0.0, 1.0)))*sign(shape_def1.z);
       float half_width = shape_def2.x * 0.5;
       float half_height = shape_def2.y * 0.5;
       // Rotate each corner with the center at the origin.
