@@ -223,7 +223,7 @@ function tick_simulation(current_time: number) {
     console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
     t--;
   }
-  
+
   if (t > 0)
     requestAnimationFrame(tick_simulation);
 }
