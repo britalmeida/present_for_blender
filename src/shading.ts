@@ -134,12 +134,6 @@ class UIRenderer {
   private stateChanges = 0;
 
 
-  // Add Primitives.
-  addPresent(p1: vec2, radius: number, pattern: number, color: vec4, color2: vec4, cornerWidth = 0): void {
-    const bounds = new Rect(p1[0] - radius, p1[1] - radius, radius*2.0, radius*2.0);
-    this.addPrimitiveShape(CMD.RECT, bounds, color, 0, cornerWidth);
-  }
-
   addRect(left: number, top: number, width: number, height: number, color: vec4, cornerWidth = 0): void {
     const bounds = new Rect(left, top, width, height);
     this.addPrimitiveShape(CMD.RECT, bounds, color, 0, cornerWidth);
