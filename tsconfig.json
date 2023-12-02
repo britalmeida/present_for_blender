@@ -1,10 +1,10 @@
 {
     "compilerOptions": {
       "target": "ES2022",
-  
+
       /* Modules */
       "isolatedModules": true, // For compatibility with Vite's HMR.
-  
+
       /* Emit */
       "declarationDir": "./types",
       "declaration": true,
@@ -13,7 +13,7 @@
       "types": [
         "vite-plugin-glsl/ext"
       ],
-  
+
       /* Type Checking */
       "strict": true,
       "noImplicitAny": true,
