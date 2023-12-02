@@ -186,6 +186,7 @@ function draw() {
     const tier = ids[i];
     const p_px : vec2 = [ positions[i][0] * m_to_px, positions[i][1] * m_to_px ];
     ui.addOrientedRect(p_px, orientations[i], widthsPx[tier], heightsPx[tier], colors[tier], tier);
+    //ui.addFrame(p_px[0]-widthsPx[tier]*0.5, p_px[1]-heightsPx[tier]*0.5, widthsPx[tier], heightsPx[tier], 1, [1,0,0,1]);
   }
   // Draw body origins.
   /*{

@@ -57,15 +57,6 @@ uint get_tile_cmd_range_start(int tile_idx) {
   return texelFetch(tile_cmd_ranges, tex_coord, 0).r;
 }
 
-vec4 sample_texture(int sampler_ID, vec2 tex_coord, int slice) {
-  int psize = 16;
-  //ivec2 tex_coord2 = ivec2(psize * slice + int(tex_coord.x) % psize, psize + int(tex_coord.y) % psize);
-  ivec2 tex_coord2 = ivec2(
-    psize * (slice + 1) + int(tex_coord.x) % psize -1,
-    psize + int(tex_coord.y) % psize -1);
-  return texelFetch(sampler0, tex_coord2, 0);
-}
-
 mat2 rotate(float angle) {
   float s = sin(angle);
   float c = cos(angle);
@@ -148,6 +139,11 @@ void main() {
   int tile_n = tile_y * num_tiles_x + tile_x;
   int tile_cmds_idx = int(get_tile_cmd_range_start(tile_n));
   int tile_cmds_end = int(get_tile_cmd_range_start(tile_n + 1));
+
+  // For debug
+  //float v = float(tile_n) / float(num_tiles_x * num_tiles_y);
+  //float v = float(tile_cmds_end - tile_cmds_idx) / 4.0;
+  //px_color = vec3(v,v,v);
 
   // Process the commands with the procedural shape definitions in order.
   // Check if this pixel is inside (or partially inside) each shape and update its color.
@@ -234,22 +230,17 @@ void main() {
       vec2 p3 = pos + rotate(angle) * vec2(+half_width, -half_height);
       vec2 p4 = pos + rotate(angle) * vec2(-half_width, -half_height);
 
-      vec4 rect = vec4(shape_bounds.x, shape_bounds.y, shape_bounds.z - 1.0, shape_bounds.w - 1.0);
       shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
 
       // Color of each fragment is given by a texture lookup.
-      float alpha = shape_color.a;
-      int sampler_idx = 5;
-      int patternIdx = int(shape_def2.z);
-      vec2 offset = pos + shape_def2.xy * 0.5;
-      //vec2 tex_coord =  - offset + rotate(angle) * (offset + frag_coord);// / viewport_size;
-      vec2 tex_coord = frag_coord - offset;
-      shape_color = sample_texture(sampler_idx, tex_coord, patternIdx);
-
-      //int psize = 16;
-      //ivec2 tex_coord2 = ivec2(psize * 1 + int(tex_coord.x) % psize, psize + int(tex_coord.y) % psize);
-      //shape_color = vec4(float(tex_coord2.x)/16.0, float(tex_coord2.y)/16.0, 0.0, 1.0);
-      shape_color.a *= alpha;
+      vec2 tex_coord = frag_coord - vec2(0.0, pos.y) * 2.0;
+      int pattern_idx = int(shape_def2.z);
+      int psize = 16;
+      ivec2 sample_coord = ivec2(
+        + int(tex_coord.x) % psize + psize * pattern_idx ,
+        - int(tex_coord.y) % psize);
+      shape_color = texelFetch(sampler0, sample_coord, 0);
+      //shape_color.a = 1.0;
     }
 
     float shape_coverage_mask = clamp(1.0 - shape_dist, 0.0, 1.0);
