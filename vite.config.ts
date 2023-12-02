@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
-import { resolve } from 'path'
+import { resolve } from 'path';
+import path from 'path';
 import glsl from 'vite-plugin-glsl';
-
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,7 +9,7 @@ export default defineConfig({
   build: {
     lib: {
       // Could also be a dictionary or array of multiple entry points
-      entry: resolve(__dirname, 'src/shading.ts'),
+      entry: resolve(path.resolve(), 'src/shading.ts'),
       name: 'PresentRenderer',
       // the proper extensions will be added
       fileName: 'present-renderer',
