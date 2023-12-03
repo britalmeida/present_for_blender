@@ -105,17 +105,18 @@ function generate_initial_positions()
   present.presentID = p++;
   present.tierIdx = tier;
   present.pos = [x * px_to_m, y * px_to_m];
-  present.ori = [0, -1];
+  present.ori = [0, 1];
   present.a = [0.0, gravity];
   presentSimData.push(present);
   contacts.push(new Array());
 
   y = 100;
+  tier = 2;
   present = new PresentSimData();
   present.presentID = p++;
   present.tierIdx = tier;
   present.pos = [x * px_to_m, y * px_to_m];
-  present.ori = [0, -1];
+  present.ori = [0, 1];
   present.a = [0.0, 0.0];
   presentSimData.push(present);
   contacts.push(new Array());
@@ -176,7 +177,7 @@ function update_physics(delta_time_ms: number) {
     // Velocity Verlet
     const new_p = prev_p + prev_v * delta_time_s + 0.5*prev_a*delta_time_s*delta_time_s;
     const half_stepped_v = prev_v + 0.5*prev_a*delta_time_s;
-    const new_a = 0;//((gravity*mass) + f_net) / mass;
+    const new_a = ((gravity*mass) + f_net) / mass;
     const new_v = half_stepped_v + 0.5*new_a*delta_time_s;
 
     if (new_p > half_height_m) {
@@ -204,17 +205,17 @@ function draw() {
     ui.addOrientedRect(p_px, presentSimData[i].ori, widthsPx[tier], heightsPx[tier], colors[tier], tier);
   }
   // Draw body origins.
-  /*{
+  {
     const axisSize = 10;
     for (const present of presentSimData) {
-      const p_px = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
+      const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[1]*axisSize, p_px[1]-present.ori[0]*axisSize], 1, [1.0, 0.0, 0.0, 1.0]);
     }
     for (const present of presentSimData) {
-      const p_px = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
+      const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[0]*axisSize, p_px[1]+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
     }
-  }*/
+  }
 
   ui.draw();
 }
@@ -223,7 +224,7 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 0; // total simulation steps
+let t = 20; // total simulation steps
 function tick_simulation(current_time: number) {
   // Calcuate the time that has elapsed since the last frame
   const delta_time = current_time - start_time;
@@ -232,10 +233,10 @@ function tick_simulation(current_time: number) {
   if (delta_time >= frame_dur) {
     start_time = current_time;
 
-    //update_physics(delta_time);
+    update_physics(delta_time);
     draw();
 
-    console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
+    //console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
     t--;
   }
 
