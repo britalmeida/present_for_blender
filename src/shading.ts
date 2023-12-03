@@ -314,8 +314,8 @@ class UIRenderer {
   // Initialize the state for a new frame
   beginFrame(): void {
     // Cache the viewport size and number of tiles for this frame.
-    this.viewport.width = this.gl.canvas.width;
-    this.viewport.height = this.gl.canvas.height;
+    this.viewport.width = this.gl.canvas.offsetWidth;
+    this.viewport.height = this.gl.canvas.offsetHeight;
 
     this.num_tiles_x = (this.viewport.width >> TILE_SIZE) + 1;
     this.num_tiles_y = (this.viewport.height >> TILE_SIZE) + 1;
