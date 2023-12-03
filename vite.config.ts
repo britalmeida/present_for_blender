@@ -7,6 +7,7 @@ import glsl from 'vite-plugin-glsl';
 export default defineConfig({
   plugins: [glsl( {compress: true} )],
   build: {
+    minify: false,
     lib: {
       // Could also be a dictionary or array of multiple entry points
       entry: resolve(path.resolve(), 'src/shading.ts'),
