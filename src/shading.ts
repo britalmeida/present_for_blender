@@ -111,7 +111,6 @@ class UIRenderer {
   private buffers;
   private cmdData = new Float32Array(MAX_CMD_DATA * 4); // Pre-allocate commands of 4 floats (128 width).
   private cmdDataIdx = 0;
-  private textureID:              WebGLTexture;
 
   // Tiles
   private num_tiles_x = 1;
@@ -274,33 +273,6 @@ class UIRenderer {
 
     // Write the shape command to the command buffer and add it to the tiles with which this shape overlaps.
     return this.writeCmdToTiles(cmdType, bounds);
-  }
-
-  // Image loading from a URL to a GPU texture.
-
-  // Create a GPU texture object (returns the ID, usable immediately) and
-  // asynchronously load the image data from the given url onto it.
-  loadImage(url: string): WebGLTexture {
-    const gl = this.gl;
-    const redrawCallback = this.redrawCallback;
-    const textureID = this.textureID;
-
-    // Create a JS image that asynchronously loads the given url and transfers
-    // the image data to GPU once that is done.
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = function() {
-      gl.bindTexture(gl.TEXTURE_2D, textureID);
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, // Mipmap level, internal format.
-        gl.RGBA, gl.UNSIGNED_BYTE, image); // Source format and type.
-      disableMipMapping(gl);
-
-      // Trigger a redraw of the component view that uses this renderer.
-      redrawCallback();
-    };
-
-    image.src = url;
-    return textureID;
   }
 
   // Render Loop
@@ -473,10 +445,6 @@ class UIRenderer {
         tileCmdsBufferTex: bindUniform(gl, shaderProgram, 'tile_cmds'),
       },
     };
-
-    // Generate the texture IDs.
-    this.textureID = gl.createTexture() as WebGLTexture; // Generate texture object ID.
-    gl.bindTexture(gl.TEXTURE_2D, this.textureID); // Create texture object with ID.
 
     // Generate GPU buffer IDs that will be filled with data later for the shader to use.
     this.buffers = {
