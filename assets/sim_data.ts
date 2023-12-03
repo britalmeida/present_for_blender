@@ -1,9 +1,7 @@
 export const simData = {
 	//canvas: { width: 700, height: 700 },
 	scale: 10,
-	widthVariancePercent: [0.0, 0.7, 0.3, 0.5, 0.25, 0.1],
-	colorBg: '#eaf3ff',
-	presentColors: ['#ffd1a8', '#bddbff', '#ffb668', '#8aadff', '#ee9543', '#7795cd'],
+	//widthVariancePercent: [0.0, 0.7, 0.3, 0.5, 0.25, 0.1],
 	presents: [
 		{
 			"label": "border",

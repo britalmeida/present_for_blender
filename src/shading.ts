@@ -83,6 +83,7 @@ const enum CMD {
   LINE     = 1,
   FRAME    = 4,
   ORI_RECT = 5,
+  GIFT     = 6,
 }
 
 // Rendering context
@@ -126,7 +127,7 @@ class UIRenderer {
   private styleStep = 2 * 4; // Number of floats that a single style needs.
 
   // State
-  private stateColor = [-1, -1, -1, -1];
+  private stateColor : vec4 = [-1, -1, -1, -1];
   private stateLineWidth = 1.0;
   private stateCorner = 0.0;
   private stateChanges = 0;
@@ -170,6 +171,26 @@ class UIRenderer {
       this.cmdData[w++] = height;
       this.cmdData[w++] = patternIdx;
       w += 1;
+
+      this.cmdDataIdx = w;
+    }
+  }
+
+  addGift(pos: vec2, ori: vec2, width: number, height: number, tierIdx: number) {
+    const bounds = new Rect(pos[0], pos[1], 0, 0);
+    const halfWidth = width*0.5+1;
+    const halfHeight = height*0.5+1;
+    bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
+    if (this.addPrimitiveShape(CMD.GIFT, bounds, this.stateColor, this.stateLineWidth, this.stateCorner)) {
+      let w = this.cmdDataIdx;
+      // Data 2 - Shape parameters
+      this.cmdData[w++] = pos[0];
+      this.cmdData[w++] = pos[1];
+      this.cmdData[w++] = ori[0];
+      this.cmdData[w++] = ori[1];
+      // Data 3 - Shape parameters II
+      this.cmdData[w++] = tierIdx;
+      w += 3;
 
       this.cmdDataIdx = w;
     }
@@ -412,7 +433,8 @@ class UIRenderer {
 
   // Initialize the renderer: compile the shader and setup static data.
   constructor(canvas: HTMLCanvasElement, redrawCallback: () => void,
-              colorBg: vec4 = [0.7176470588235294, 0.7529411764705882, 0.9, 1.0]) {
+              colorBg: vec4 = [0.7176470588235294, 0.7529411764705882, 0.9, 1.0],
+              giftColors: Array<vec4>, giftWidths: Array<number>, giftHeights: Array<number>) {
     this.redrawCallback = redrawCallback;
 
     // Initialize the GL context.
@@ -440,6 +462,8 @@ class UIRenderer {
       uniforms: {
         vpSize: bindUniform(gl, shaderProgram, 'viewport_size'),
         bgColor: bindUniform(gl, shaderProgram, 'color_bg'),
+        giftColors: bindUniform(gl, shaderProgram, 'gift_colors'),
+        giftSizes: bindUniform(gl, shaderProgram, 'gift_sizes'),
         cmdBufferTex: bindUniform(gl, shaderProgram, 'cmd_data'),
         tileCmdRangesBufferTex: bindUniform(gl, shaderProgram, 'tile_cmd_ranges'),
         tileCmdsBufferTex: bindUniform(gl, shaderProgram, 'tile_cmds'),
@@ -488,10 +512,31 @@ class UIRenderer {
       TILE_CMDS_BUFFER_LINE, TILE_CMDS_BUFFER_LINE); // Width, height.
     disableMipMapping(gl);
 
-    // Setup the canvas background color.
-    gl.useProgram(this.shaderInfo.program);
-    gl.uniform4f(this.shaderInfo.uniforms.bgColor, colorBg[0], colorBg[1], colorBg[2], colorBg[3]);
-    gl.useProgram(null);
+    // Setup the rendering constants: background color, gift colors and sizes.
+    {
+      gl.useProgram(this.shaderInfo.program);
+      // Set bg color.
+      gl.uniform4f(this.shaderInfo.uniforms.bgColor, colorBg[0], colorBg[1], colorBg[2], colorBg[3]);
+      // Set gift colors.
+      const giftColorData = new Float32Array(giftColors.length * 4); // vec4
+      let i = 0;
+      for (const color of giftColors) {
+        giftColorData[i++] = color[0];
+        giftColorData[i++] = color[1];
+        giftColorData[i++] = color[2];
+        giftColorData[i++] = color[3];
+      }
+      gl.uniform4fv(this.shaderInfo.uniforms.giftColors, giftColorData);
+      // Set gift width and height.
+      const giftSizesData = new Float32Array(giftWidths.length * 2); // vec2
+      i = 0;
+      for (var j=0; j<giftWidths.length; j++) {
+        giftSizesData[i++] = giftWidths[j];
+        giftSizesData[i++] = giftHeights[j];
+      }
+      gl.uniform2fv(this.shaderInfo.uniforms.giftSizes, giftSizesData);
+      gl.useProgram(null);
+    }
   }
 }
 

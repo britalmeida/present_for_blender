@@ -11,19 +11,18 @@ if (canvas === null) {
 const HEIGHT = canvas.offsetHeight / 1;
 
 // Data - the presents!
-const masses = [5, 10, 25, 50, 100, 250]; // in euros :)
+const masses = [5, 10, 60, 120, 300, 600, 5*12, 10*12, 25*12, 50*12, 100*12, 250*12]; // in euros :)
 
 // Simulation Configuration
-
-const colors: Array<vec4> = simData.presentColors.map((v) => hexToRGBFloat(v));
+const colors: Array<vec4> = ['#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4',
+                             '#ffd1a8', '#bddbff', '#ffb668', '#8aadff', '#ee9543', '#7795cd'].map((v) => hexToRGBFloat(v));
 // Bg color to hardcode in the fragment shader.
-const colorBg = hexToRGBFloat(simData.colorBg);
+const colorBg = hexToRGBFloat('#5a535c');
 
-const scale = simData.scale;
-const widthVariancePercent = simData.widthVariancePercent;
-//let widthVariancePercent = [0.0, 0.7, 0.3, 0.5, 0.25, 0.1]; // How much longer is one side vs the other.
-                                                             // e.g. 0.5 = one side is 50% longer than the other.
-// let widthVariancePercent = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]; // Use this one for squares.
+const scale = 8 / Math.sqrt(12);
+let widthVariancePercent = [      // How much longer is one side vs the other.
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0,   // e.g. 0.5 = one side is 50% longer than the other.
+  0.0, 0.7, 0.3, 0.5, 0.25, 0.1]; // 0.0 is a square. Don't type 1.0 ;)
 
 // ~ end Configuration
 
@@ -34,9 +33,10 @@ const sidesPx = masses.map((v) => Math.sqrt(v) * scale);
 const widthsPx =  sidesPx.map((v, i) => v + v * widthVariancePercent[i]);
 const heightsPx = widthsPx.map((v, i) => sidesPx[i]*sidesPx[i] / v);
 //console.log("Present widths in px:", widthsPx);
+//console.log("Present heights in px:", heightsPx);
 
 // Runtime data for the present simulation and present renderer.
-const masses_kg =  masses.map((v) => v / 100.0);
+const masses_kg =  masses.map((v) => v / 1000.0);
 const gravity = -9.81; // m/s2
 
 class PresentSimData {
@@ -93,31 +93,23 @@ function load_initial_positions()
 function generate_initial_positions()
 {
   let y = 300;
-  let x = 10;
-  let tier = 3;
+  let x = 5;
   let p = 0;
-  const radius = widthsPx[tier] / 2;
-  x += radius;
+  for (let tierIdx = 0; tierIdx < masses.length; tierIdx++) {
+    const radius = widthsPx[tierIdx] / 2;
+    x += radius;
 
-  var present = new PresentSimData();
-  present.presentID = p++;
-  present.tierIdx = tier;
-  present.pos = [x * px_to_m, y * px_to_m];
-  present.ori = [0, 1];
-  present.a = [0.0, gravity];
-  presentSimData.push(present);
-  contacts.push(new Array());
+    var present = new PresentSimData();
+    present.presentID = p++;
+    present.tierIdx = tierIdx;
+    present.pos = [x * px_to_m, y * px_to_m];
+    present.ori = [0, 1];
+    present.a = [0.0, gravity];
+    presentSimData.push(present);
+    contacts.push(new Array());
 
-  y = 100;
-  tier = 2;
-  present = new PresentSimData();
-  present.presentID = p++;
-  present.tierIdx = tier;
-  present.pos = [x * px_to_m, y * px_to_m];
-  present.ori = [0, 1];
-  present.a = [0.0, 0.0];
-  presentSimData.push(present);
-  contacts.push(new Array());
+    x += radius + 5;
+  }
 }
 
 function check_intersections() {
@@ -215,7 +207,7 @@ function draw() {
     }
   }
   // Draw contacts.
-  {
+  /*{
     for (let i = 0; i < presentSimData.length; i++) {
       for (const contact of contacts[i]) {
         const p : vec2 = [(presentSimData[i].pos[0] + contact.p[0])*m_to_px,
@@ -223,7 +215,7 @@ function draw() {
         ui.addLine(p, [p[0]+contact.n[0]*5, p[1]+contact.n[1]*5], 1, [1.0, 1.0, 0.0, 1.0]);
       }
     }
-  }
+  }*/
 
   ui.draw();
 }
@@ -232,7 +224,7 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 20; // total simulation steps
+let t = 0; // total simulation steps
 function tick_simulation(current_time: number) {
   // Calcuate the time that has elapsed since the last frame
   const delta_time = current_time - start_time;
@@ -252,5 +244,5 @@ function tick_simulation(current_time: number) {
     requestAnimationFrame(tick_simulation);
 }
 
-const uiRenderer: UIRenderer = new UIRenderer(canvas, draw, colorBg);
+const uiRenderer: UIRenderer = new UIRenderer(canvas, draw, colorBg, colors, widthsPx, heightsPx);
 tick_simulation(frame_dur);
