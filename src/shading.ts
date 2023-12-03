@@ -451,7 +451,8 @@ class UIRenderer {
   }
 
   // Initialize the renderer: compile the shader and setup static data.
-  constructor(canvas: HTMLCanvasElement, redrawCallback: () => void) {
+  constructor(canvas: HTMLCanvasElement, redrawCallback: () => void,
+              colorBg: vec4 = [0.7176470588235294, 0.7529411764705882, 0.9, 1.0]) {
     this.redrawCallback = redrawCallback;
 
     // Initialize the GL context.
@@ -478,6 +479,7 @@ class UIRenderer {
       },
       uniforms: {
         vpSize: bindUniform(gl, shaderProgram, 'viewport_size'),
+        bgColor: bindUniform(gl, shaderProgram, 'color_bg'),
         cmdBufferTex: bindUniform(gl, shaderProgram, 'cmd_data'),
         tileCmdRangesBufferTex: bindUniform(gl, shaderProgram, 'tile_cmd_ranges'),
         tileCmdsBufferTex: bindUniform(gl, shaderProgram, 'tile_cmds'),
@@ -530,6 +532,11 @@ class UIRenderer {
       gl.R16UI, // GPU internal format: 16bit unsigned integer components.
       TILE_CMDS_BUFFER_LINE, TILE_CMDS_BUFFER_LINE); // Width, height.
     disableMipMapping(gl);
+
+    // Setup the canvas background color.
+    gl.useProgram(this.shaderInfo.program);
+    gl.uniform4f(this.shaderInfo.uniforms.bgColor, colorBg[0], colorBg[1], colorBg[2], colorBg[3]);
+    gl.useProgram(null);
   }
 }
 

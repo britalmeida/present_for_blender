@@ -17,7 +17,7 @@ const masses = [5, 10, 25, 50, 100, 250]; // in euros :)
 
 const colors: Array<vec4> = simData.presentColors.map((v) => hexToRGBFloat(v));
 // Bg color to hardcode in the fragment shader.
-//console.log(hexToRGBFloat(simData.colorBg));
+const colorBg = hexToRGBFloat(simData.colorBg);
 
 const scale = simData.scale;
 const widthVariancePercent = simData.widthVariancePercent;
@@ -252,6 +252,6 @@ function tick_simulation(current_time: number) {
     requestAnimationFrame(tick_simulation);
 }
 
-const uiRenderer: UIRenderer = new UIRenderer(canvas, draw);
+const uiRenderer: UIRenderer = new UIRenderer(canvas, draw, colorBg);
 uiRenderer.loadImage('/assets/patterns.png');
 tick_simulation(frame_dur);

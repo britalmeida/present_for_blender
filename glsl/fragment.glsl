@@ -18,6 +18,7 @@ const int TILE_CMDS_BUFFER_LINE = 256;
 const int TILES_CMD_RANGE_BUFFER_LINE = 4 * 1024; // Single line, addresses all possible tiles.
 
 // Inputs
+uniform vec4 color_bg;
 uniform vec2 viewport_size;
 uniform sampler2D cmd_data; // 'Global' buffer with all the shape and style commands
 uniform usampler2D tile_cmds; // Commands per tile: packed sequence of cmd_data indexes, one tile after the other.
@@ -125,7 +126,7 @@ void main() {
 
   // Default fragment background color and opacity.
   // Will be overwritten if this pixel is determined to be inside shapes.
-  vec3 px_color = vec3(0.9176470588235294, 0.9529411764705882, 1.0);
+  vec3 px_color = color_bg.xyz;
   float px_alpha = 1.0;
 
   vec4 view_clip_rect = vec4(0, 0, viewport_size.x, viewport_size.y);
