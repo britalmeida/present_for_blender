@@ -50,16 +50,14 @@ class PresentSimData {
 const presentSimData = new Array<PresentSimData>();
 
 class Contact {
-  toi: number;
-  other_body_id: number;
-  contact_point: vec2;
-  surface_normal: vec2;
+  other: number; // The ID of the other body.
+  p: vec2; // Contact position on the surface of the object.
+  n: vec2; // Surface normal
 
-  constructor(toi: number, other_body_id: number, contact_point: vec2, surface_normal: vec2) {
-    this.toi = toi;
-    this.other_body_id = other_body_id;
-    this.contact_point = contact_point;
-    this.surface_normal = surface_normal;
+  constructor(other: number, contact_point: vec2, surface_normal: vec2) {
+    this.other = other;
+    this.p = contact_point;
+    this.n = surface_normal;
   }
 }
 let contacts: Array<Array<Contact>> = [];
@@ -135,9 +133,9 @@ function check_intersections() {
 
       if (pos1[1] - pos2[1] < radius1_m + radius2_m)
       {
-        console.log("CONTACT!", pos2[1] - pos1[1]);
-        contacts[i].push( new Contact(0, j, pos1, [0, 1]) );
-        contacts[j].push( new Contact(0, i, pos1, [0, -1]) );
+        console.log("CONTACT!", (pos2[1] - pos1[1]).toFixed(3));
+        contacts[i].push( new Contact(j, [0.0, -radius1_m], [0, -1]) );
+        contacts[j].push( new Contact(i, [0.0, +radius2_m], [0, +1]) );
       }
     }
   }
@@ -149,7 +147,7 @@ function determine_forces(i: number) {
   let net_force = 0;
   for (let c = 0; c < contacts[i].length; c++) {
     const contact = contacts[i][c];
-    const i2 = contact.other_body_id;
+    const i2 = contact.other;
     net_force += -b * presentSimData[i2].v[1];
     console.log("net force", i, net_force);
   }
@@ -214,6 +212,16 @@ function draw() {
     for (const present of presentSimData) {
       const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[0]*axisSize, p_px[1]+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
+    }
+  }
+  // Draw contacts.
+  {
+    for (let i = 0; i < presentSimData.length; i++) {
+      for (const contact of contacts[i]) {
+        const p : vec2 = [(presentSimData[i].pos[0] + contact.p[0])*m_to_px,
+                          (presentSimData[i].pos[1] + contact.p[1])*m_to_px];
+        ui.addLine(p, [p[0]+contact.n[0]*5, p[1]+contact.n[1]*5], 1, [1.0, 1.0, 0.0, 1.0]);
+      }
     }
   }
 
