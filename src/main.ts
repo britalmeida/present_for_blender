@@ -253,5 +253,4 @@ function tick_simulation(current_time: number) {
 }
 
 const uiRenderer: UIRenderer = new UIRenderer(canvas, draw, colorBg);
-uiRenderer.loadImage('/assets/patterns.png');
 tick_simulation(frame_dur);

@@ -81,7 +81,6 @@ class Rect {
 // Command types
 const enum CMD {
   LINE     = 1,
-  RECT     = 3,
   FRAME    = 4,
   ORI_RECT = 5,
 }
@@ -133,11 +132,6 @@ class UIRenderer {
   private stateCorner = 0.0;
   private stateChanges = 0;
 
-
-  addRect(left: number, top: number, width: number, height: number, color: vec4, cornerWidth = 0): void {
-    const bounds = new Rect(left, top, width, height);
-    this.addPrimitiveShape(CMD.RECT, bounds, color, 0, cornerWidth);
-  }
 
   addFrame(left: number, bottom: number, width: number, height: number, lineWidth: number, color: vec4, cornerWidth = 0): void {
     const bounds = new Rect(left, bottom, width, height);
@@ -423,12 +417,6 @@ class UIRenderer {
       gl.uniform1i(this.shaderInfo.uniforms.tileCmdRangesBufferTex, textureUnit++);
     }
 
-    // Bind the patterns texture.
-    textureUnit = 5;
-    gl.activeTexture(gl.TEXTURE0 + textureUnit); // Set context to use TextureUnit X
-    gl.bindTexture(gl.TEXTURE_2D, this.textureID); // Bind the texture to the active TextureUnit
-    gl.uniform1i(this.shaderInfo.uniforms.sampler0, textureUnit); // Set shader sampler to use TextureUnit X
-
     // Draw
     gl.drawArrays(gl.TRIANGLE_STRIP,
       0, // Offset.
@@ -483,7 +471,6 @@ class UIRenderer {
         cmdBufferTex: bindUniform(gl, shaderProgram, 'cmd_data'),
         tileCmdRangesBufferTex: bindUniform(gl, shaderProgram, 'tile_cmd_ranges'),
         tileCmdsBufferTex: bindUniform(gl, shaderProgram, 'tile_cmds'),
-        sampler0: bindUniform(gl, shaderProgram, 'sampler0'),
       },
     };
 

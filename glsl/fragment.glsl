@@ -6,10 +6,8 @@ precision highp sampler2DArray;
 
 // Command types
 const int CMD_LINE     = 1;
-const int CMD_RECT     = 3;
 const int CMD_FRAME    = 4;
 const int CMD_ORI_RECT = 5;
-const int CMD_IMAGE    = 6;
 
 // Constants
 const int TILE_SIZE    = 5; // 5bits = 32px
@@ -23,9 +21,6 @@ uniform vec2 viewport_size;
 uniform sampler2D cmd_data; // 'Global' buffer with all the shape and style commands
 uniform usampler2D tile_cmds; // Commands per tile: packed sequence of cmd_data indexes, one tile after the other.
 uniform usampler2D tile_cmd_ranges; // Where each tile's data is in tile_cmds. List of start indexes.
-
-// Textures
-uniform sampler2D sampler0;
 
 // Color output
 out vec4 fragColor;
@@ -189,15 +184,6 @@ void main() {
       float line_radius = line_width * 0.5;
       shape_dist = dist_to_line(frag_coord, vec2(shape_def1.xy), vec2(shape_def1.zw), line_radius);
 
-    } else if (cmd_type == CMD_RECT) {
-
-      if (clip_dist > 1.0) continue;
-
-      // The actual rect is 1px smaller than the bounds, aligned top-left.
-      // e.g. for rect defined left=2, right=5 => width=3, pixel coverage= 2,3,4.
-      vec4 rect = vec4(shape_bounds.x, shape_bounds.y, shape_bounds.z - 1.0, shape_bounds.w - 1.0);
-      shape_dist = dist_to_round_rect(frag_coord, rect, corner_radius);
-
     } else if (cmd_type == CMD_FRAME) {
 
       if (clip_dist > 1.0) continue;
@@ -232,16 +218,6 @@ void main() {
       vec2 p4 = pos + rotate(angle) * vec2(-half_width, -half_height);
 
       shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
-
-      // Color of each fragment is given by a texture lookup.
-      vec2 tex_coord = frag_coord - vec2(0.0, pos.y) * 2.0;
-      int pattern_idx = int(shape_def2.z);
-      int psize = 16;
-      ivec2 sample_coord = ivec2(
-        + int(tex_coord.x) % psize + psize * pattern_idx ,
-        - int(tex_coord.y) % psize);
-      shape_color = texelFetch(sampler0, sample_coord, 0);
-      //shape_color.a = 1.0;
     }
 
     float shape_coverage_mask = clamp(1.0 - shape_dist, 0.0, 1.0);
