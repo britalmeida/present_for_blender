@@ -101,10 +101,8 @@ class UIRenderer {
   // Rendering context
   private gl: WebGL2RenderingContext;
 
-  // Callback to trigger a redraw of the view component using this renderer.
-  private readonly redrawCallback: () => void;
-
   // Viewport transform
+  private views: View[] = [];
   private viewport = {width: 1, height: 1};
 
   // Shader data
@@ -432,10 +430,9 @@ class UIRenderer {
   }
 
   // Initialize the renderer: compile the shader and setup static data.
-  constructor(canvas: HTMLCanvasElement, redrawCallback: () => void,
+  constructor(canvas: HTMLCanvasElement,
               colorBg: vec4 = [0.7176470588235294, 0.7529411764705882, 0.9, 1.0],
               giftColors: Array<vec4>, giftWidths: Array<number>, giftHeights: Array<number>) {
-    this.redrawCallback = redrawCallback;
 
     // Initialize the GL context.
     const gl = canvas.getContext('webgl2');

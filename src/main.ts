@@ -245,5 +245,5 @@ function tick_simulation(current_time: number) {
     requestAnimationFrame(tick_simulation);
 }
 
-const uiRenderer: UIRenderer = new UIRenderer(canvas, draw, colorBg, colors, widthsPx, heightsPx);
+const uiRenderer: UIRenderer = new UIRenderer(canvas, colorBg, colors, widthsPx, heightsPx);
 tick_simulation(frame_dur);
