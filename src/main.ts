@@ -8,6 +8,7 @@ const canvas = document.querySelector<HTMLCanvasElement>('#campaign-gifts-pile')
 if (canvas === null) {
   throw new Error("present_for_blender could not find a canvas element with id 'campaign-gifts-pile'");
 }
+const WIDTH = canvas.offsetWidth / 1;
 const HEIGHT = canvas.offsetHeight / 1;
 
 // Data - the presents!
@@ -189,6 +190,14 @@ function draw() {
   const ui = uiRenderer;
   ui.beginFrame();
 
+    // Set the timeline area view window.
+    const offset = 300; // Pan.
+    const scale = 1.05; // Zoom.
+    const view = ui.pushView(
+      0, 0, WIDTH, HEIGHT,
+      [scale, 1], [0, offset]
+    );
+
   for (let i = 0; i < presentSimData.length; i++) {
     const tier = presentSimData[i].tierIdx;
     const p_px : vec2 = [ presentSimData[i].pos[0] * m_to_px, presentSimData[i].pos[1] * m_to_px ];
@@ -216,6 +225,8 @@ function draw() {
       }
     }
   }*/
+
+  ui.popView();
 
   ui.draw();
 }

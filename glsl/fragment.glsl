@@ -9,6 +9,7 @@ const int CMD_LINE     = 1;
 const int CMD_FRAME    = 4;
 const int CMD_ORI_RECT = 5;
 const int CMD_GIFT     = 6;
+const int CMD_CLIP     = 9;
 
 // Constants
 const int TILE_SIZE    = 5; // 5bits = 32px
@@ -151,6 +152,11 @@ void main() {
     vec4 cmd = get_cmd_data(data_idx++);
     int cmd_type = int(cmd[0]);
     int style_idx = int(cmd[1]);
+
+    if (cmd_type == CMD_CLIP) {
+      view_clip_rect = get_cmd_data(data_idx++);
+      continue;
+    }
 
     vec4 style = get_style_data(style_idx);
     float line_width = style[0];

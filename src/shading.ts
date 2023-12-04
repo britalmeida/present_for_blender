@@ -16,6 +16,7 @@ export function hexToRGBFloat(hex: string): vec4 {
   ];
 }
 
+
 // Representation of a rectangle for geometry operations.
 class Rect {
   left: number;
@@ -28,8 +29,8 @@ class Rect {
   constructor(x: number, y: number, w: number, h: number) {
     this.left = x;
     this.right = x + w;
-    this.top = y + h;
     this.bottom = y;
+    this.top = y + h;
     this.width = w;
     this.height = h;
   }
@@ -75,6 +76,58 @@ class Rect {
 }
 
 
+// 2D Coordinate system mapped in a rectangular area.
+// Represents Zoom and Pan by mapping coordinates within the rectangular area to
+// coordinates in the View space (e.g. [0-20] -> x2 Zoom -> [0-40]).
+// The rectangular area is additionally used to clip the contents, i.e. with the
+// 2x zoom and no pan, the original [0-10] are shown in the [0-20] space, while
+// the original [10-20] lie outside the View window.
+class View extends Rect {
+  scaleX: number;
+  scaleY: number;
+  offsetX: number;
+  offsetY: number;
+
+  constructor(x: number, y: number, w: number, h: number,
+              scale: vec2, offset: vec2) {
+    super(x, y, w, h);
+    this.scaleX = scale[0];
+    this.scaleY = scale[1];
+    this.offsetX = offset[0];
+    this.offsetY = offset[1];
+  }
+
+  getXYScale(): number {
+    return Math.min(this.scaleX, this.scaleY);
+  }
+
+  // Transform a position value to this View's coordinates, in the horizontal axis.
+  transformPosX(p: number): number {
+    return (p - this.left + this.offsetX) * this.scaleX + this.left;
+  }
+  // Transform a position to this View's coordinates, in the vertical axis.
+  transformPosY(p: number): number {
+    return (p - this.bottom + this.offsetY) * this.scaleY + this.bottom;
+  }
+  // Transform a distance value to this View's coordinates, in the horizontal axis.
+  transformDistX(d: number): number {
+    return d * this.scaleX;
+  }
+  // Transform a distance value to this View's coordinates, in the vertical axis.
+  transformDistY(d: number): number {
+    return d * this.scaleY;
+  }
+  // Transform a rectangle to this View's coordinates.
+  transformRect(r: Rect): Rect {
+    return new Rect(
+      this.transformPosX(r.left),
+      this.transformPosY(r.bottom),
+      this.transformDistX(r.width),
+      this.transformDistY(r.height));
+  }
+}
+
+
 // Constants shared with the shader configuration.
 // Changes to these values need ot be reflected in the shader as well.
 
@@ -84,6 +137,7 @@ const enum CMD {
   FRAME    = 4,
   ORI_RECT = 5,
   GIFT     = 6,
+  CLIP     = 9,
 }
 
 // Rendering context
@@ -142,11 +196,12 @@ class UIRenderer {
     bounds.widen(Math.round(width * 0.5 + 0.01));
     if (this.addPrimitiveShape(CMD.LINE, bounds, color, width, 0)) {
       let w = this.cmdDataIdx;
+      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = p1[0];
-      this.cmdData[w++] = p1[1];
-      this.cmdData[w++] = p2[0];
-      this.cmdData[w++] = p2[1];
+      this.cmdData[w++] = v.transformPosX(p1[0]);
+      this.cmdData[w++] = v.transformPosY(p1[1]);
+      this.cmdData[w++] = v.transformPosX(p2[0]);
+      this.cmdData[w++] = v.transformPosY(p2[1]);
 
       this.cmdDataIdx = w;
     }
@@ -159,14 +214,15 @@ class UIRenderer {
     bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
     if (this.addPrimitiveShape(CMD.ORI_RECT, bounds, color, 0, 0)) {
       let w = this.cmdDataIdx;
+      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = pos[0];
-      this.cmdData[w++] = pos[1];
-      this.cmdData[w++] = ori[0];
-      this.cmdData[w++] = ori[1];
+      this.cmdData[w++] = v.transformPosX(pos[0]);
+      this.cmdData[w++] = v.transformPosY(pos[1]);
+      this.cmdData[w++] = v.transformDistX(ori[0]);
+      this.cmdData[w++] = v.transformDistY(ori[1]);
       // Data 3 - Shape parameters II
-      this.cmdData[w++] = width;
-      this.cmdData[w++] = height;
+      this.cmdData[w++] = v.transformDistX(width);
+      this.cmdData[w++] = v.transformDistY(height);
       this.cmdData[w++] = patternIdx;
       w += 1;
 
@@ -181,11 +237,12 @@ class UIRenderer {
     bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
     if (this.addPrimitiveShape(CMD.GIFT, bounds, this.stateColor, this.stateLineWidth, this.stateCorner)) {
       let w = this.cmdDataIdx;
+      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = pos[0];
-      this.cmdData[w++] = pos[1];
-      this.cmdData[w++] = ori[0];
-      this.cmdData[w++] = ori[1];
+      this.cmdData[w++] = v.transformPosX(pos[0]);
+      this.cmdData[w++] = v.transformPosY(pos[1]);
+      this.cmdData[w++] = v.transformDistX(ori[0]);
+      this.cmdData[w++] = v.transformDistY(ori[1]);
       // Data 3 - Shape parameters II
       this.cmdData[w++] = tierIdx;
       w += 3;
@@ -281,17 +338,81 @@ class UIRenderer {
   // Private. Write the given shape and its style to the command buffers, if it is in the current view.
   addPrimitiveShape(cmdType: CMD, bounds: Rect, color: vec4, lineWidth: number, corner: number): boolean {
 
+    // Pan and zoom the shape positioning according to the current view.
+    const v = this.getView();
+    bounds = v.transformRect(bounds);
+
     // Clip bounds.
-    if (bounds.right < 0 || bounds.left > this.viewport.width
-      || bounds.top < 0 || bounds.bottom > this.viewport.height ) {
+    if (bounds.right < v.left || bounds.left > v.right
+      || bounds.top < v.bottom || bounds.bottom > v.top) {
       return false;
     }
 
     // Check for a change of style and push a new style if needed.
-    this.pushStyleIfNew(color, lineWidth, corner);
+    const view_scale = v.getXYScale();
+    this.pushStyleIfNew(color, lineWidth * view_scale, corner * view_scale);
 
     // Write the shape command to the command buffer and add it to the tiles with which this shape overlaps.
     return this.writeCmdToTiles(cmdType, bounds);
+  }
+
+  // Private. Add a clip command to the global command buffer.
+  addClipRect(left: number, bottom: number, right: number, top: number): boolean {
+    // Write clip rect information for the shader.
+
+    // Get the w(rite) index for the global command buffer.
+    let w = this.cmdDataIdx;
+    // Check for the required number of free command slots.
+    if (w/4 + 2 > MAX_SHAPE_CMDS) {
+      console.warn("Too many shapes to draw.", w/4 + 2, "of", MAX_SHAPE_CMDS);
+      return false;
+    }
+
+    // Add the command index to all the tiles. Tiles outside the clip rect bounds also need it.
+    for (let y = 0; y < this.num_tiles_y; y++) {
+      for (let x = 0; x < this.num_tiles_x; x++) {
+        const tile_idx = y * this.num_tiles_x + x;
+        const num_tile_cmds = ++this.cmdsPerTile[tile_idx][0];
+        if (num_tile_cmds > MAX_CMDS_PER_TILE - 2) {
+          console.warn("Too many shapes in a single tile");
+          return false;
+        }
+        this.cmdsPerTile[tile_idx][num_tile_cmds] = w / 4;
+      }
+    }
+
+  // Data 0 - Header
+  this.cmdData[w++] = CMD.CLIP;
+  w += 3;
+  // Data 1 - Bounds
+  this.cmdData[w++] = left;
+  this.cmdData[w++] = bottom;
+  this.cmdData[w++] = right;
+  this.cmdData[w++] = top;
+  this.cmdDataIdx = w;
+
+  return true;
+}
+
+
+  // Views
+
+  getView(): View {
+    // The renderer should have pushed an initial default full-canvas view. The array should not be empty.
+    return this.views[this.views.length - 1];
+  }
+
+  pushView(x: number, y: number, w: number, h: number, scale: vec2, offset: vec2): View {
+    const view = new View(x, y, w, h, scale, offset);
+    this.views.push(view);
+    this.addClipRect(x +1, y +1, x + w -1, y + h -1);
+    return view;
+  }
+
+  popView(): void {
+    this.views.pop();
+    const v = this.getView();
+    this.addClipRect(v.left, v.bottom, v.right, v.top);
   }
 
   // Render Loop
@@ -319,7 +440,11 @@ class UIRenderer {
     for (let i = 0; i < this.num_tiles_n; i++) {
       this.cmdsPerTile[i] = new Uint16Array(MAX_CMDS_PER_TILE);
     }
+
+    // Push a fallback full-canvas view with no scale and no offset.
+    this.pushView(0, 0, this.viewport.width, this.viewport.height, [1, 1], [0, 0]);
   }
+  
 
   // Draw a frame with the current primitive commands.
   draw(): void {
@@ -423,6 +548,7 @@ class UIRenderer {
     // Clear the draw list.
     this.cmdDataIdx = 0;
     // Clear the state.
+    this.views = [];
     this.stateColor = [-1, -1, -1, -1];
     // Clear the style list.
     this.styleDataIdx = this.styleDataStartIdx;
@@ -609,5 +735,5 @@ function loadShader(gl: WebGL2RenderingContext, shader_type: GLenum, source_code
 }
 
 
-export { Rect, UIRenderer };
+export { Rect, View, UIRenderer };
 export type { vec2, vec4 };
