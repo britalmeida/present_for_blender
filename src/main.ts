@@ -125,7 +125,7 @@ function check_intersections() {
 
       if (pos1[1] - pos2[1] < radius1_m + radius2_m)
       {
-        console.log("CONTACT!", (pos2[1] - pos1[1]).toFixed(3));
+        //console.log("CONTACT!", (pos2[1] - pos1[1]).toFixed(3));
         contacts[i].push( new Contact(j, [0.0, -radius1_m], [0, -1]) );
         contacts[j].push( new Contact(i, [0.0, +radius2_m], [0, +1]) );
       }
@@ -141,7 +141,7 @@ function determine_forces(i: number) {
     const contact = contacts[i][c];
     const i2 = contact.other;
     net_force += -b * presentSimData[i2].v[1];
-    console.log("net force", i, net_force);
+    //console.log("net force", i, net_force);
   }
   return net_force;
 }
@@ -174,7 +174,7 @@ function update_physics(delta_time_ms: number) {
       presentSimData[i].pos[1] = new_p;
       presentSimData[i].v[1] = new_v;
       presentSimData[i].a[1] = new_a;
-      console.log("p: ", new_p.toFixed(2), "v: ", new_v.toFixed(2), " a: ", new_a.toFixed(2));
+      //console.log("p: ", new_p.toFixed(2), "v: ", new_v.toFixed(2), " a: ", new_a.toFixed(2));
     } else {
       // Give it a rest.
       presentSimData[i].pos[1] = half_height_m;
@@ -192,7 +192,7 @@ function draw() {
   for (let i = 0; i < presentSimData.length; i++) {
     const tier = presentSimData[i].tierIdx;
     const p_px : vec2 = [ presentSimData[i].pos[0] * m_to_px, presentSimData[i].pos[1] * m_to_px ];
-    ui.addOrientedRect(p_px, presentSimData[i].ori, widthsPx[tier], heightsPx[tier], colors[tier], tier);
+    ui.addGift(p_px, presentSimData[i].ori, widthsPx[tier], heightsPx[tier], tier);
   }
   // Draw body origins.
   {
