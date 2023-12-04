@@ -233,10 +233,11 @@ function tick_simulation(current_time: number) {
   if (delta_time >= frame_dur) {
     start_time = current_time;
 
-    update_physics(delta_time);
+    update_physics(frame_dur);
     draw();
 
-    //console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
+    if (delta_time > 40)
+      console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
     t--;
   }
 
