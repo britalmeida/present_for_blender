@@ -9,7 +9,6 @@ const int CMD_LINE     = 1;
 const int CMD_FRAME    = 4;
 const int CMD_ORI_RECT = 5;
 const int CMD_GIFT     = 6;
-const int CMD_CLIP     = 9;
 
 // Constants
 const int TILE_SIZE    = 5; // 5bits = 32px
@@ -22,6 +21,8 @@ uniform vec4 color_bg;
 uniform vec4 gift_colors[12];
 uniform vec2 gift_sizes[12];
 uniform vec2 viewport_size;
+uniform vec2 view_scale;
+uniform vec2 view_offset;
 uniform sampler2D cmd_data; // 'Global' buffer with all the shape and style commands
 uniform usampler2D tile_cmds; // Commands per tile: packed sequence of cmd_data indexes, one tile after the other.
 uniform usampler2D tile_cmd_ranges; // Where each tile's data is in tile_cmds. List of start indexes.
@@ -142,7 +143,7 @@ void main() {
 
   // For debug
   //float v = float(tile_n) / float(num_tiles_x * num_tiles_y);
-  //float v = float(tile_cmds_end - tile_cmds_idx) / 4.0;
+  //float v = float(tile_cmds_end - tile_cmds_idx) / 8.0;
   //px_color = vec3(v,v,v);
 
   // Process the commands with the procedural shape definitions in order.
@@ -152,11 +153,6 @@ void main() {
     vec4 cmd = get_cmd_data(data_idx++);
     int cmd_type = int(cmd[0]);
     int style_idx = int(cmd[1]);
-
-    if (cmd_type == CMD_CLIP) {
-      view_clip_rect = get_cmd_data(data_idx++);
-      continue;
-    }
 
     vec4 style = get_style_data(style_idx);
     float line_width = style[0];
@@ -215,18 +211,18 @@ void main() {
       vec4 shape_def2 = get_cmd_data(data_idx++);
       if (clip_dist > 1.0) continue;
 
+      vec2 half_dims = shape_def2.xy * 0.5;
       vec2 pos = shape_def1.xy;
       float angle = acos(dot(shape_def1.zw, vec2(0.0, 1.0)))*sign(shape_def1.z);
-      float half_width = shape_def2.x * 0.5;
-      float half_height = shape_def2.y * 0.5;
       // Rotate each corner with the center at the origin.
       // Then translate the corners back to be around the rectangle center.
-      vec2 p1 = pos + rotate(angle) * vec2(-half_width, +half_height);
-      vec2 p2 = pos + rotate(angle) * vec2(+half_width, +half_height);
-      vec2 p3 = pos + rotate(angle) * vec2(+half_width, -half_height);
-      vec2 p4 = pos + rotate(angle) * vec2(-half_width, -half_height);
+      vec2 p1 = (pos + rotate(angle) * vec2(-half_dims.x, +half_dims.y)) * view_scale + view_offset;
+      vec2 p2 = (pos + rotate(angle) * vec2(+half_dims.x, +half_dims.y)) * view_scale + view_offset;
+      vec2 p3 = (pos + rotate(angle) * vec2(+half_dims.x, -half_dims.y)) * view_scale + view_offset;
+      vec2 p4 = (pos + rotate(angle) * vec2(-half_dims.x, -half_dims.y)) * view_scale + view_offset;
 
       shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
+
     } else if (cmd_type == CMD_GIFT) {
 
       vec4 shape_def1 = get_cmd_data(data_idx++);
@@ -234,20 +230,17 @@ void main() {
       if (clip_dist > 1.0) continue;
 
       int tierIdx = int(shape_def2.x);
-      float half_width  = gift_sizes[tierIdx].x * 0.5;
-      float half_height = gift_sizes[tierIdx].y * 0.5;
-
+      vec2 half_dims = gift_sizes[tierIdx].xy * 0.5;
       vec2 pos = shape_def1.xy;
       float angle = acos(dot(shape_def1.zw, vec2(0.0, 1.0)))*sign(shape_def1.z);
       // Rotate each corner with the center at the origin.
       // Then translate the corners back to be around the rectangle center.
-      vec2 p1 = pos + rotate(angle) * vec2(-half_width, +half_height);
-      vec2 p2 = pos + rotate(angle) * vec2(+half_width, +half_height);
-      vec2 p3 = pos + rotate(angle) * vec2(+half_width, -half_height);
-      vec2 p4 = pos + rotate(angle) * vec2(-half_width, -half_height);
+      vec2 p1 = (pos + rotate(angle) * vec2(-half_dims.x, +half_dims.y)) * view_scale + view_offset;
+      vec2 p2 = (pos + rotate(angle) * vec2(+half_dims.x, +half_dims.y)) * view_scale + view_offset;
+      vec2 p3 = (pos + rotate(angle) * vec2(+half_dims.x, -half_dims.y)) * view_scale + view_offset;
+      vec2 p4 = (pos + rotate(angle) * vec2(-half_dims.x, -half_dims.y)) * view_scale + view_offset;
 
       shape_dist = dist_to_quad(frag_coord, p1, p2, p3, p4);
-
       shape_color = gift_colors[tierIdx];
     }
 

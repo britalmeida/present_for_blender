@@ -103,11 +103,11 @@ class View extends Rect {
 
   // Transform a position value to this View's coordinates, in the horizontal axis.
   transformPosX(p: number): number {
-    return (p - this.left + this.offsetX) * this.scaleX + this.left;
+    return (p - this.left) * this.scaleX + this.left + this.offsetX;
   }
   // Transform a position to this View's coordinates, in the vertical axis.
   transformPosY(p: number): number {
-    return (p - this.bottom + this.offsetY) * this.scaleY + this.bottom;
+    return (p - this.bottom) * this.scaleY + this.bottom + this.offsetY;
   }
   // Transform a distance value to this View's coordinates, in the horizontal axis.
   transformDistX(d: number): number {
@@ -137,7 +137,6 @@ const enum CMD {
   FRAME    = 4,
   ORI_RECT = 5,
   GIFT     = 6,
-  CLIP     = 9,
 }
 
 // Rendering context
@@ -156,7 +155,7 @@ class UIRenderer {
   private gl: WebGL2RenderingContext;
 
   // Viewport transform
-  private views: View[] = [];
+  private view = new View(0, 0, 1, 1, [1, 1], [0, 0]);
   private viewport = {width: 1, height: 1};
 
   // Shader data
@@ -196,7 +195,7 @@ class UIRenderer {
     bounds.widen(Math.round(width * 0.5 + 0.01));
     if (this.addPrimitiveShape(CMD.LINE, bounds, color, width, 0)) {
       let w = this.cmdDataIdx;
-      const v = this.getView();
+      const v = this.view;
       // Data 2 - Shape parameters
       this.cmdData[w++] = v.transformPosX(p1[0]);
       this.cmdData[w++] = v.transformPosY(p1[1]);
@@ -209,20 +208,19 @@ class UIRenderer {
 
   addOrientedRect(pos: vec2, ori: vec2, width: number, height: number, color: vec4, patternIdx: number) {
     const bounds = new Rect(pos[0], pos[1], 0, 0);
-    const halfWidth = width*0.5+1;
-    const halfHeight = height*0.5+1;
+    const halfWidth = width * 0.5;
+    const halfHeight = height * 0.5;
     bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
     if (this.addPrimitiveShape(CMD.ORI_RECT, bounds, color, 0, 0)) {
       let w = this.cmdDataIdx;
-      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = v.transformPosX(pos[0]);
-      this.cmdData[w++] = v.transformPosY(pos[1]);
-      this.cmdData[w++] = v.transformDistX(ori[0]);
-      this.cmdData[w++] = v.transformDistY(ori[1]);
+      this.cmdData[w++] = pos[0];
+      this.cmdData[w++] = pos[1];
+      this.cmdData[w++] = ori[0];
+      this.cmdData[w++] = ori[1];
       // Data 3 - Shape parameters II
-      this.cmdData[w++] = v.transformDistX(width);
-      this.cmdData[w++] = v.transformDistY(height);
+      this.cmdData[w++] = width;
+      this.cmdData[w++] = height;
       this.cmdData[w++] = patternIdx;
       w += 1;
 
@@ -232,17 +230,16 @@ class UIRenderer {
 
   addGift(pos: vec2, ori: vec2, width: number, height: number, tierIdx: number) {
     const bounds = new Rect(pos[0], pos[1], 0, 0);
-    const halfWidth = width*0.5+1;
-    const halfHeight = height*0.5+1;
+    const halfWidth = width * 0.5;
+    const halfHeight = height * 0.5;
     bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
     if (this.addPrimitiveShape(CMD.GIFT, bounds, this.stateColor, this.stateLineWidth, this.stateCorner)) {
       let w = this.cmdDataIdx;
-      const v = this.getView();
       // Data 2 - Shape parameters
-      this.cmdData[w++] = v.transformPosX(pos[0]);
-      this.cmdData[w++] = v.transformPosY(pos[1]);
-      this.cmdData[w++] = v.transformDistX(ori[0]);
-      this.cmdData[w++] = v.transformDistY(ori[1]);
+      this.cmdData[w++] = pos[0];
+      this.cmdData[w++] = pos[1];
+      this.cmdData[w++] = ori[0];
+      this.cmdData[w++] = ori[1];
       // Data 3 - Shape parameters II
       this.cmdData[w++] = tierIdx;
       w += 3;
@@ -339,7 +336,7 @@ class UIRenderer {
   addPrimitiveShape(cmdType: CMD, bounds: Rect, color: vec4, lineWidth: number, corner: number): boolean {
 
     // Pan and zoom the shape positioning according to the current view.
-    const v = this.getView();
+    const v = this.view;
     bounds = v.transformRect(bounds);
 
     // Clip bounds.
@@ -356,63 +353,12 @@ class UIRenderer {
     return this.writeCmdToTiles(cmdType, bounds);
   }
 
-  // Private. Add a clip command to the global command buffer.
-  addClipRect(left: number, bottom: number, right: number, top: number): boolean {
-    // Write clip rect information for the shader.
-
-    // Get the w(rite) index for the global command buffer.
-    let w = this.cmdDataIdx;
-    // Check for the required number of free command slots.
-    if (w/4 + 2 > MAX_SHAPE_CMDS) {
-      console.warn("Too many shapes to draw.", w/4 + 2, "of", MAX_SHAPE_CMDS);
-      return false;
-    }
-
-    // Add the command index to all the tiles. Tiles outside the clip rect bounds also need it.
-    for (let y = 0; y < this.num_tiles_y; y++) {
-      for (let x = 0; x < this.num_tiles_x; x++) {
-        const tile_idx = y * this.num_tiles_x + x;
-        const num_tile_cmds = ++this.cmdsPerTile[tile_idx][0];
-        if (num_tile_cmds > MAX_CMDS_PER_TILE - 2) {
-          console.warn("Too many shapes in a single tile");
-          return false;
-        }
-        this.cmdsPerTile[tile_idx][num_tile_cmds] = w / 4;
-      }
-    }
-
-  // Data 0 - Header
-  this.cmdData[w++] = CMD.CLIP;
-  w += 3;
-  // Data 1 - Bounds
-  this.cmdData[w++] = left;
-  this.cmdData[w++] = bottom;
-  this.cmdData[w++] = right;
-  this.cmdData[w++] = top;
-  this.cmdDataIdx = w;
-
-  return true;
-}
-
-
   // Views
 
-  getView(): View {
-    // The renderer should have pushed an initial default full-canvas view. The array should not be empty.
-    return this.views[this.views.length - 1];
-  }
-
-  pushView(x: number, y: number, w: number, h: number, scale: vec2, offset: vec2): View {
-    const view = new View(x, y, w, h, scale, offset);
-    this.views.push(view);
-    this.addClipRect(x +1, y +1, x + w -1, y + h -1);
+  setView(scale: vec2, offset: vec2): View {
+    const view = new View(0, 0, this.viewport.width, this.viewport.height, scale, offset);
+    this.view = view;
     return view;
-  }
-
-  popView(): void {
-    this.views.pop();
-    const v = this.getView();
-    this.addClipRect(v.left, v.bottom, v.right, v.top);
   }
 
   // Render Loop
@@ -442,7 +388,7 @@ class UIRenderer {
     }
 
     // Push a fallback full-canvas view with no scale and no offset.
-    this.pushView(0, 0, this.viewport.width, this.viewport.height, [1, 1], [0, 0]);
+    this.setView([1, 1], [0, 0]);
   }
   
 
@@ -460,6 +406,9 @@ class UIRenderer {
 
     // Set the transform.
     gl.uniform2f(this.shaderInfo.uniforms.vpSize, this.viewport.width, this.viewport.height);
+    const v = this.view;
+    gl.uniform2f(this.shaderInfo.uniforms.viewScale, v.scaleX, v.scaleY);
+    gl.uniform2f(this.shaderInfo.uniforms.viewOffset, v.offsetX, v.offsetY);
 
     // Bind the vertex data for the shader to use and specify how to interpret it.
     // The shader works as a full size rect, new coordinates don't need to be set per frame.
@@ -548,7 +497,7 @@ class UIRenderer {
     // Clear the draw list.
     this.cmdDataIdx = 0;
     // Clear the state.
-    this.views = [];
+    this.setView([1, 1], [0, 0]);
     this.stateColor = [-1, -1, -1, -1];
     // Clear the style list.
     this.styleDataIdx = this.styleDataStartIdx;
@@ -584,6 +533,8 @@ class UIRenderer {
       },
       uniforms: {
         vpSize: bindUniform(gl, shaderProgram, 'viewport_size'),
+        viewScale: bindUniform(gl, shaderProgram, 'view_scale'),
+        viewOffset: bindUniform(gl, shaderProgram, 'view_offset'),
         bgColor: bindUniform(gl, shaderProgram, 'color_bg'),
         giftColors: bindUniform(gl, shaderProgram, 'gift_colors'),
         giftSizes: bindUniform(gl, shaderProgram, 'gift_sizes'),

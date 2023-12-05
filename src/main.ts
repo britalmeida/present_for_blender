@@ -93,9 +93,10 @@ function load_initial_positions()
 
 function generate_initial_positions()
 {
-  let y = 300;
+  let y = 30;
   let x = 5;
   let p = 0;
+  let angle = 0.7853982;
   for (let tierIdx = 0; tierIdx < masses.length; tierIdx++) {
     const radius = widthsPx[tierIdx] / 2;
     x += radius;
@@ -104,12 +105,12 @@ function generate_initial_positions()
     present.presentID = p++;
     present.tierIdx = tierIdx;
     present.pos = [x * px_to_m, y * px_to_m];
-    present.ori = [0, 1];
+    present.ori = [Math.sin(angle), Math.cos(angle)];
     present.a = [0.0, gravity];
     presentSimData.push(present);
     contacts.push(new Array());
 
-    x += radius + 5;
+    x += radius + 60;
   }
 }
 
@@ -190,18 +191,14 @@ function draw() {
   const ui = uiRenderer;
   ui.beginFrame();
 
-    // Set the timeline area view window.
-    const offset = 300; // Pan.
-    const scale = 1.05; // Zoom.
-    const view = ui.pushView(
-      0, 0, WIDTH, HEIGHT,
-      [scale, 1], [0, offset]
-    );
+    const view = ui.setView([1, 1], [0, 30]);
 
   for (let i = 0; i < presentSimData.length; i++) {
     const tier = presentSimData[i].tierIdx;
     const p_px : vec2 = [ presentSimData[i].pos[0] * m_to_px, presentSimData[i].pos[1] * m_to_px ];
     ui.addGift(p_px, presentSimData[i].ori, widthsPx[tier], heightsPx[tier], tier);
+    ui.addOrientedRect([p_px[0], p_px[1]+250], presentSimData[i].ori, widthsPx[tier], heightsPx[tier], colors[tier], tier);
+
   }
   // Draw body origins.
   {
@@ -209,12 +206,15 @@ function draw() {
     for (const present of presentSimData) {
       const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[1]*axisSize, p_px[1]-present.ori[0]*axisSize], 1, [1.0, 0.0, 0.0, 1.0]);
+      ui.addLine([p_px[0], p_px[1]+250],[p_px[0]+present.ori[1]*axisSize, p_px[1]+250-present.ori[0]*axisSize], 1, [1.0, 0.0, 0.0, 1.0]);
     }
     for (const present of presentSimData) {
       const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[0]*axisSize, p_px[1]+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
+      ui.addLine([p_px[0], p_px[1]+250], [p_px[0]+present.ori[0]*axisSize, p_px[1]+250+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
     }
   }
+  
   // Draw contacts.
   /*{
     for (let i = 0; i < presentSimData.length; i++) {
@@ -225,8 +225,6 @@ function draw() {
       }
     }
   }*/
-
-  ui.popView();
 
   ui.draw();
 }
