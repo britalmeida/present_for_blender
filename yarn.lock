@@ -7,6 +7,11 @@
   resolved "https://registry.yarnpkg.com/@aashutoshrathi/word-wrap/-/word-wrap-1.2.6.tgz#bd9154aec9983f77b3a034ecaa015c2e4201f6cf"
   integrity sha512-1Yjs2SvM8TflER/OD3cOjhWWOZb58A2t7wpE2S9XfBYTiIl+XFhQG2bjy4Pu1I+EAlCNUzRDYDdFwFYUKvXcIA==
 
+"@dimforge/rapier2d@0.11.2":
+  version "0.11.2"
+  resolved "https://registry.yarnpkg.com/@dimforge/rapier2d/-/rapier2d-0.11.2.tgz#de12750c056de760cfd08e60ea395df4ce67736b"
+  integrity sha512-sCq8Kdg4w+J8XwE1Jkb0Un5eduVXOuLWzBTZfiiwY4CZu12QfJE+2zUdZs3bYsNREP1Ois8IxpiEIL8ZBEyesg==
+
 "@esbuild/android-arm64@0.19.7":
   version "0.19.7"
   resolved "https://registry.yarnpkg.com/@esbuild/android-arm64/-/android-arm64-0.19.7.tgz#646156aea43e8e6723de6e94a4ac07c5aed41be1"
@@ -1158,6 +1163,11 @@ vite-plugin-glsl@1.1.2:
   integrity sha512-zmXsfc1vn2MlYve9t3FAoWuhLyoCkNS1TuQL+TkXZL7tGmBjRErp10eNYxcse5tK9oUC5MyJpNc4ElpQnx8DoA==
   dependencies:
     "@rollup/pluginutils" "^5.0.2"
+
+vite-plugin-wasm@3.3.0:
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/vite-plugin-wasm/-/vite-plugin-wasm-3.3.0.tgz#2908ef2529bf8f33f4e549c8c6fda26ad273ca15"
+  integrity sha512-tVhz6w+W9MVsOCHzxo6SSMSswCeIw4HTrXEi6qL3IRzATl83jl09JVO1djBqPSwfjgnpVHNLYcaMbaDX5WB/pg==
 
 vite@5.0.5:
   version "5.0.5"
