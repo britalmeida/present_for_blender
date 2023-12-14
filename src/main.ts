@@ -28,7 +28,7 @@ let widthVariancePercent = [      // How much longer is one side vs the other.
 // ~ end Configuration
 
 // Calculate present sizes in px.
-const m_to_px = 100;
+const m_to_px = 10;
 const px_to_m = 1 / m_to_px;
 const sidesPx = masses.map((v) => Math.sqrt(v) * scale);
 const widthsPx =  sidesPx.map((v, i) => v + v * widthVariancePercent[i]);
@@ -63,7 +63,7 @@ class Contact {
 }
 let contacts: Array<Array<Contact>> = [];
 
-generate_initial_positions();
+//generate_initial_positions();
 //load_initial_positions();
 
 function load_initial_positions()
@@ -197,7 +197,6 @@ function draw() {
     const tier = presentSimData[i].tierIdx;
     const p_px : vec2 = [ presentSimData[i].pos[0] * m_to_px, presentSimData[i].pos[1] * m_to_px ];
     ui.addGift(p_px, presentSimData[i].ori, widthsPx[tier], heightsPx[tier], tier);
-    ui.addOrientedRect([p_px[0], p_px[1]+250], presentSimData[i].ori, widthsPx[tier], heightsPx[tier], colors[tier], tier);
 
   }
   // Draw body origins.
@@ -206,12 +205,10 @@ function draw() {
     for (const present of presentSimData) {
       const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[1]*axisSize, p_px[1]-present.ori[0]*axisSize], 1, [1.0, 0.0, 0.0, 1.0]);
-      ui.addLine([p_px[0], p_px[1]+250],[p_px[0]+present.ori[1]*axisSize, p_px[1]+250-present.ori[0]*axisSize], 1, [1.0, 0.0, 0.0, 1.0]);
     }
     for (const present of presentSimData) {
       const p_px : vec2 = [ present.pos[0] * m_to_px, present.pos[1] * m_to_px ];
       ui.addLine(p_px, [p_px[0]+present.ori[0]*axisSize, p_px[1]+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
-      ui.addLine([p_px[0], p_px[1]+250], [p_px[0]+present.ori[0]*axisSize, p_px[1]+250+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
     }
   }
 
@@ -233,29 +230,10 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 0; // total simulation steps
-function tick_simulation(current_time: number) {
-  // Calcuate the time that has elapsed since the last frame
-  const delta_time = current_time - start_time;
-
-  // Tick a frame only after enough time accumulated.
-  if (delta_time >= frame_dur) {
-    start_time = current_time;
-
-    update_physics(frame_dur);
-    draw();
-
-    if (delta_time > 40)
-      console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
-    t--;
-  }
-
-  if (t > 0)
-    requestAnimationFrame(tick_simulation);
-}
+let t = 1000; // total simulation steps
 
 const uiRenderer: UIRenderer = new UIRenderer(canvas, colorBg, colors, widthsPx, heightsPx);
-tick_simulation(frame_dur);
+
 
 
 import('@dimforge/rapier2d').then(RAPIER => {
@@ -268,24 +246,51 @@ import('@dimforge/rapier2d').then(RAPIER => {
 
   // Create a dynamic rigid-body.
   let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-          .setTranslation(0.0, 1.0);
+          .setTranslation(5.0, 25.0);
   let rigidBody = world.createRigidBody(rigidBodyDesc);
 
   // Create a cuboid collider attached to the dynamic rigidBody.
   let colliderDesc = RAPIER.ColliderDesc.cuboid(0.5, 0.5);
   let collider = world.createCollider(colliderDesc, rigidBody);
 
-  // Game loop. Replace by your own game loop system.
-  let gameLoop = () => {
-    // Ste the simulation forward.
-    world.step();
-
-    // Get and print the rigid-body's position.
+    var present = new PresentSimData();
+    present.presentID = 1;
+    present.tierIdx = 3;
+    // Create an object and its initial simulation values.
+    // Convert from matter.js (0,0) at top-left with y down and angles along x
+    // to (0,0) at bottom-left with y up with angles along y.
+    const angle = 0;
     let position = rigidBody.translation();
-    console.log("Rigid-body position: ", position.x, position.y);
+    present.pos = [position.x, (1 - position.y)];
+    present.ori = [Math.sin(angle), Math.cos(angle)];
 
-    setTimeout(gameLoop, 16);
-  };
+    presentSimData.push(present);
+    contacts.push(new Array());
 
-  gameLoop();
+  function tick_simulation(current_time: number) {
+    // Calcuate the time that has elapsed since the last frame
+    const delta_time = current_time - start_time;
+  
+    // Tick a frame only after enough time accumulated.
+    if (delta_time >= frame_dur) {
+      start_time = current_time;
+  
+      //update_physics(frame_dur);
+      world.step();
+
+      let position = rigidBody.translation();
+      presentSimData[0].pos = [position.x, (position.y)];
+
+      draw();
+  
+      if (delta_time > 40)
+        console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
+      t--;
+    }
+  
+    if (t > 0)
+      requestAnimationFrame(tick_simulation);
+  }
+  
+  tick_simulation(frame_dur);
 })
