@@ -88,7 +88,7 @@ function load_initial_positions()
     presentSimData.push(present);
     contacts.push(new Array());
   }
-  
+
 }
 
 function generate_initial_positions()
@@ -214,7 +214,7 @@ function draw() {
       ui.addLine([p_px[0], p_px[1]+250], [p_px[0]+present.ori[0]*axisSize, p_px[1]+250+present.ori[1]*axisSize], 1, [0.0, 1.0, 0.0, 1.0]);
     }
   }
-  
+
   // Draw contacts.
   /*{
     for (let i = 0; i < presentSimData.length; i++) {
@@ -277,7 +277,7 @@ import('@dimforge/rapier2d').then(RAPIER => {
 
   // Game loop. Replace by your own game loop system.
   let gameLoop = () => {
-    // Ste the simulation forward.  
+    // Ste the simulation forward.
     world.step();
 
     // Get and print the rigid-body's position.
