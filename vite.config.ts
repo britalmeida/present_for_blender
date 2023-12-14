@@ -2,10 +2,11 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import path from 'path';
 import glsl from 'vite-plugin-glsl';
+import wasm from 'vite-plugin-wasm';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [glsl( {compress: true} )],
+  plugins: [glsl( {compress: true} ), wasm(),],
   build: {
     minify: false,
     lib: {
@@ -17,3 +18,4 @@ export default defineConfig({
     },
   },
 })
+
