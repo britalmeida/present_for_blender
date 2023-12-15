@@ -127,6 +127,7 @@ void main() {
   // Default fragment background color and opacity.
   // Will be overwritten if this pixel is determined to be inside shapes.
   vec3 px_color = color_bg.xyz;
+  px_color = vec3(0.2, 0.9, 0.2);
   float px_alpha = 1.0;
 
   vec4 view_clip_rect = vec4(0, 0, viewport_size.x, viewport_size.y);
@@ -142,9 +143,9 @@ void main() {
   int tile_cmds_end = int(get_tile_cmd_range_start(tile_n + 1));
 
   // For debug
-  //float v = float(tile_n) / float(num_tiles_x * num_tiles_y);
+  float v = float(tile_x) / float(num_tiles_x);
+  //float v = float(tile_cmds_end-tile_cmds_idx) / float(128);
   //float v = float(tile_cmds_end - tile_cmds_idx) / 8.0;
-  //px_color = vec3(v,v,v);
 
   // Process the commands with the procedural shape definitions in order.
   // Check if this pixel is inside (or partially inside) each shape and update its color.
@@ -253,6 +254,8 @@ void main() {
 
     // Process next shape.
   }
+
+  px_color = vec3(v,v,v);
 
   fragColor = vec4(px_color, px_alpha);
 
