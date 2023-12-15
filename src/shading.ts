@@ -233,7 +233,7 @@ class UIRenderer {
     const halfWidth = width * 0.5;
     const halfHeight = height * 0.5;
     bounds.widen(Math.sqrt(halfWidth*halfWidth + halfHeight*halfHeight));
-    if (this.addPrimitiveShape(CMD.GIFT, bounds, this.stateColor, this.stateLineWidth, this.stateCorner)) {
+    if (this.addPrimitiveShape(CMD.GIFT, bounds, [1, 0, 1, 1], 0, 0)) {
       let w = this.cmdDataIdx;
       // Data 2 - Shape parameters
       this.cmdData[w++] = pos[0];
