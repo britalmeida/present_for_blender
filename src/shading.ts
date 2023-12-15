@@ -140,13 +140,15 @@ const enum CMD {
 }
 
 // Rendering context
-const MAX_CMD_BUFFER_LINE = 512; // Note: constants are hardcoded on the shader side as well.
+// Note: constants are hardcoded on the shader side as well.
+// As of 2023, there's near 100% browser support for WebGL2 textures of 4096x4096 pixels.
+const MAX_CMD_BUFFER_LINE = 512;
 const MAX_CMD_DATA   = MAX_CMD_BUFFER_LINE * MAX_CMD_BUFFER_LINE;
 const MAX_STYLE_CMDS = MAX_CMD_BUFFER_LINE;
 const MAX_SHAPE_CMDS = MAX_CMD_DATA - MAX_STYLE_CMDS;
 const TILE_SIZE = 5;            // Tile side: 32 pixels = 5 bits.
 const MAX_TILES = 4 * 1024 - 1; // Must fit in the tileCmdRanges texture. +1 to fit the end index of the last tile.
-const MAX_CMDS_PER_TILE = 64;
+const MAX_CMDS_PER_TILE = 128;
 const TILE_CMDS_BUFFER_LINE = 256;
 
 
@@ -550,6 +552,8 @@ class UIRenderer {
       // Sadly, WebGL2 does not support Buffer Textures (no gl.texBuffer() or gl.TEXTURE_BUFFER target).
       // It doesn't support 1D textures either. We're left with a UBO or a 2D image for command data storage.
       // Chose a 2D image because it can support more data than the UBO.
+      // According to WebGL2 support statistics, there's support for textures of up to 4096x4096 pixels,
+      // compared to UBOs of 16384 bytes.
       cmdBufferTexture: gl.createTexture(),
       tileCmdRangesTexture: gl.createTexture(),
       tileCmdsTexture: gl.createTexture(),
