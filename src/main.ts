@@ -28,7 +28,7 @@ let widthVariancePercent = [      // How much longer is one side vs the other.
 // ~ end Configuration
 
 // Calculate present sizes in px.
-const m_to_px = 10;
+const m_to_px = 100;
 const px_to_m = 1 / m_to_px;
 const sidesPx = masses.map((v) => Math.sqrt(v) * scale);
 const widthsPx =  sidesPx.map((v, i) => v + v * widthVariancePercent[i]);
@@ -66,7 +66,7 @@ let contacts: Array<Array<Contact>> = [];
 //generate_initial_positions();
 //load_initial_positions();
 
-function load_initial_positions()
+function load_initial_positionsToRenderer()
 {
   for (const body of simData.presents) {
     if (body.label === 'border')
@@ -89,6 +89,37 @@ function load_initial_positions()
     contacts.push(new Array());
   }
 
+}
+
+function loadInitialPositionsToRapier(RAPIER: any, world: any)
+{
+  for (const body of simData.presents) {
+    if (body.label === 'border')
+      continue;
+
+    var present = new PresentSimData();
+    // Convert the information in the label to the indexes.
+    const labelParts = body.label.split("-");
+    present.presentID = Number(labelParts[1]);
+    present.tierIdx = masses.indexOf(Number(labelParts[0]));
+
+    presentSimData.push(present);
+    contacts.push(new Array());
+
+    // Create a dynamic rigid-body.
+    let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(body.position.x * px_to_m, (HEIGHT - body.position.y) * px_to_m)
+      .setRotation(body.angle);
+    let rigidBody = world.createRigidBody(rigidBodyDesc);
+    console.log(rigidBody.handle)
+
+    console.log(present.tierIdx, body.position.x, body.position.x * px_to_m);
+
+    // Create a cuboid collider attached to the dynamic rigidBody.
+    let colliderDesc = RAPIER.ColliderDesc.cuboid(widthsPx[present.tierIdx] * px_to_m, heightsPx[present.tierIdx] * px_to_m);
+    let collider = world.createCollider(colliderDesc, rigidBody);
+    console.log(collider);
+  }
 }
 
 function generate_initial_positions()
@@ -148,7 +179,7 @@ function determine_forces(i: number) {
   return net_force;
 }
 
-function update_physics(delta_time_ms: number) {
+function updatePhysicsWithOwnCode(delta_time_ms: number) {
   const delta_time_s = delta_time_ms / 1000;
 
   check_intersections();
@@ -186,16 +217,35 @@ function update_physics(delta_time_ms: number) {
   }
 }
 
+
+function updatePhysicsWithRapier(world: any) {
+  world.step();
+
+  // Sync Rapier's positions and orientations to the renderer.
+  let i = 0;
+  world.forEachRigidBody((handle: RigidBodyHandle) => {
+    const body = world.getRigidBody(handle);
+    let position = body.translation();
+    let angle = body.rotation();
+    console.log("up", i, handle, position.x);
+    presentSimData[i].pos = [position.x, position.y];
+    presentSimData[i].ori = [Math.sin(angle), Math.cos(angle)];
+    i++;
+  });
+}
+
+
 function draw() {
 
   const ui = uiRenderer;
   ui.beginFrame();
 
-    const view = ui.setView([1, 1], [0, 30]);
+    const view = ui.setView([4, 4], [0, 30]);
 
   for (let i = 0; i < presentSimData.length; i++) {
     const tier = presentSimData[i].tierIdx;
     const p_px : vec2 = [ presentSimData[i].pos[0] * m_to_px, presentSimData[i].pos[1] * m_to_px ];
+    console.log("draw", i, p_px[0])
     ui.addGift(p_px, presentSimData[i].ori, widthsPx[tier], heightsPx[tier], tier);
 
   }
@@ -230,42 +280,23 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 1000; // total simulation steps
+let t = 1; // total simulation steps
 
 const uiRenderer: UIRenderer = new UIRenderer(canvas, colorBg, colors, widthsPx, heightsPx);
 
 
 
 import('@dimforge/rapier2d').then(RAPIER => {
-  let gravity = { x: 0.0, y: -9.81 };
+
+  // Create Physics world.
+  const gravity = { x: 0.0, y: -9.81 };
   let world = new RAPIER.World(gravity);
 
   // Create the ground
-  let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.1);
+  let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.01);
   world.createCollider(groundColliderDesc);
 
-  // Create a dynamic rigid-body.
-  let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-          .setTranslation(5.0, 25.0);
-  let rigidBody = world.createRigidBody(rigidBodyDesc);
-
-  // Create a cuboid collider attached to the dynamic rigidBody.
-  let colliderDesc = RAPIER.ColliderDesc.cuboid(0.5, 0.5);
-  let collider = world.createCollider(colliderDesc, rigidBody);
-
-    var present = new PresentSimData();
-    present.presentID = 1;
-    present.tierIdx = 3;
-    // Create an object and its initial simulation values.
-    // Convert from matter.js (0,0) at top-left with y down and angles along x
-    // to (0,0) at bottom-left with y up with angles along y.
-    const angle = 0;
-    let position = rigidBody.translation();
-    present.pos = [position.x, (1 - position.y)];
-    present.ori = [Math.sin(angle), Math.cos(angle)];
-
-    presentSimData.push(present);
-    contacts.push(new Array());
+  loadInitialPositionsToRapier(RAPIER, world);
 
   function tick_simulation(current_time: number) {
     // Calcuate the time that has elapsed since the last frame
@@ -275,11 +306,8 @@ import('@dimforge/rapier2d').then(RAPIER => {
     if (delta_time >= frame_dur) {
       start_time = current_time;
   
-      //update_physics(frame_dur);
-      world.step();
-
-      let position = rigidBody.translation();
-      presentSimData[0].pos = [position.x, (position.y)];
+      //updatePhysicsWithOwnCode(frame_dur);
+      updatePhysicsWithRapier(world);
 
       draw();
   
