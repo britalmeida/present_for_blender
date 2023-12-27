@@ -91,29 +91,16 @@ function load_initial_positionsToRenderer()
 
 }
 
-function loadInitialPositionsToRapier(RAPIER: any, world: any)
+function loadInitialPositionsFromRendererToRapier(RAPIER: any, world: any)
 {
-  for (const body of simData.presents) {
-    if (body.label === 'border')
-      continue;
-
-    // Create data for this present.
-    var present = new PresentSimData();
-    presentSimData.push(present);
-    contacts.push(new Array());
-
-    // Convert the information in the label to the indexes.
-    const labelParts = body.label.split("-");
-    present.presentID = Number(labelParts[1]);
-    present.tierIdx = masses.indexOf(Number(labelParts[0]));
-
-    // Create a dynamic rigid-body.
+  for (const present of presentSimData) {  
+    // Create a dynamic rigid-body with the position and orientation from the render data.
     let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-      .setTranslation(body.position.x * px_to_m, (HEIGHT - body.position.y) * px_to_m)
-      .setRotation(body.angle);
+      .setTranslation(present.pos[0], present.pos[1])
+      .setRotation(Math.asin(present.ori[0]));
     let rigidBody = world.createRigidBody(rigidBodyDesc);
 
-    // Create a cuboid collider attached to the dynamic rigidBody.
+    // Create a cuboid collider attached to the dynamic rigidBody, with dimensions as in the present tier.
     let colliderDesc = RAPIER.ColliderDesc.cuboid(widthsPx[present.tierIdx] * px_to_m, heightsPx[present.tierIdx] * px_to_m);
     let collider = world.createCollider(colliderDesc, rigidBody);
   }
@@ -288,7 +275,8 @@ import('@dimforge/rapier2d').then(RAPIER => {
   let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.01);
   world.createCollider(groundColliderDesc);
 
-  loadInitialPositionsToRapier(RAPIER, world);
+  load_initial_positionsToRenderer();
+  loadInitialPositionsFromRendererToRapier(RAPIER, world);
 
   function tick_simulation(current_time: number) {
     // Calcuate the time that has elapsed since the last frame
