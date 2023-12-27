@@ -13,6 +13,25 @@ const HEIGHT = canvas.offsetHeight / 1;
 
 // Data - the presents!
 const masses = [5, 10, 60, 120, 300, 600, 5*12, 10*12, 25*12, 50*12, 100*12, 250*12]; // in euros :)
+function getTierIdx(giftAmount: number, giftType: string) {
+  // Match the order values given by the backend with the suggested tiers offered in the front end in euros.
+  giftAmount = giftAmount / 100; // cents to euro units.
+  // Recurring monthly subscriptions ('s'ubscribed, 'r'enewed).
+  if (giftType === 'r' || giftType === 's') {
+    giftAmount = giftAmount * 12;
+  }
+
+  // Look up the specified amount in the array, picking the closest tier in euros.
+  const minTierIdx = (giftType === 'd') ? 0 : 6; // Donations ('d') are in the first half.
+  for (let idx = (giftType === 'd') ? 4 : 10;  idx >= minTierIdx ; idx--) {
+    // If the value is bigger than this tier and closer to higher tier than to this one, we found it: return the highest.
+    const upperRange = masses[idx+1] - masses[idx];
+    if (giftAmount > masses[idx] + upperRange * 0.5) {
+      return idx+1;
+    }
+  }
+  return minTierIdx;
+}
 
 // Simulation Configuration
 const colors: Array<vec4> = ['#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4',
@@ -63,10 +82,8 @@ class Contact {
 }
 let contacts: Array<Array<Contact>> = [];
 
-//generate_initial_positions();
-//load_initial_positions();
 
-function load_initial_positionsToRenderer()
+function loadInitialPositionsFromJSONToRenderer()
 {
   for (const body of simData.presents) {
     if (body.label === 'border')
@@ -101,14 +118,45 @@ function loadInitialPositionsFromRendererToRapier(RAPIER: any, world: any)
     let rigidBody = world.createRigidBody(rigidBodyDesc);
 
     // Create a cuboid collider attached to the dynamic rigidBody, with dimensions as in the present tier.
-    let colliderDesc = RAPIER.ColliderDesc.cuboid(widthsPx[present.tierIdx] * px_to_m, heightsPx[present.tierIdx] * px_to_m);
+    let colliderDesc = RAPIER.ColliderDesc.cuboid(widthsPx[present.tierIdx] * 0.5 * px_to_m, heightsPx[present.tierIdx] * 0.5 * px_to_m);
     let collider = world.createCollider(colliderDesc, rigidBody);
   }
 }
 
-function generate_initial_positions()
+class Order {
+  presentID = 0;
+  amount = 0;
+  type = 'd';
+  name = "";
+  constructor(presentID: number, amount: number, type: string, name: string) {
+    this.presentID = presentID;
+    this.amount = amount;
+    this.type = type;
+    this.name = name;
+  }
+}
+function generateRandomOrders(numOrders: number) {
+  let generatedOrders = new Array<Order>();
+  // Randomly generate X presents given a rough probability of purchases per subscription value.
+  const tiers = [5, 10, 25, 50, 100, 250];
+  const tier_probs = [0.66917, 0.18233, 0.12030, 0.01504, 0.00752, 0.0];
+  for (let i=0; i < numOrders; i++) {
+      const random_value = Math.random();
+      let tier_index = 0;
+      let tier_prob = tier_probs[tier_index];
+      while (random_value > tier_prob) {
+          tier_index += 1;
+          tier_prob += tier_probs[tier_index];
+      }
+      const random_verb = ['r', 's', 'd'][Math.floor(Math.random()*3)];
+      generatedOrders.push(new Order(i, tiers[tier_index]*100, random_verb, ''));
+  }
+  return {'orders': generatedOrders, 'ownOrderIndices': [0]};
+}
+
+function generateInitialPositionsForRenderer(worldWidthPx: number, worldHeightPx: number, orders: Array<Order>)
 {
-  let y = 30;
+  /*let y = 30;
   let x = 5;
   let p = 0;
   let angle = 0.7853982;
@@ -126,6 +174,57 @@ function generate_initial_positions()
     contacts.push(new Array());
 
     x += radius + 60;
+  }*/
+
+  {
+    // Calculate grid layout.
+    const gap = 3; // num pixels in between gifts and the simulation margin, so things don't drag on each other.
+    const gridCellSize = Math.floor(widthsPx[widthsPx.length - 3] + gap); // Temp: use third largest gift size.
+    // const numCols = Math.ceil(worldWidthPx / gridCellSize);
+    //console.log("Distributing", totalPresents, "gifts in", numCols, "cols,", numRows, "rows,", gridCellSize, "px cell side");
+    //console.log(numCols * gridCellSize, worldWidthPx, worldWidthPx - (numCols * gridCellSize));
+    const startY = worldHeightPx - 50;
+    const startX = gap;
+
+    let x = startX;
+    let y = startY;
+    let row = 0;
+    let maxObservedHeightInRow = 0;
+    for (let p=0; p<orders.length; p++) {
+
+      // Create the gift data for the renderer.
+      var present = new PresentSimData();
+      presentSimData.push(present);
+      contacts.push(new Array());
+
+      // Convert the information in the label to the indexes.
+      let tierIdx = getTierIdx(orders[p].amount, orders[p].type);
+      present.presentID = p;
+      present.tierIdx = tierIdx;
+
+      // Gift dimensions.
+      const bodyWidth = widthsPx[tierIdx];
+      const bodyHeight = heightsPx[tierIdx];
+      if (bodyHeight > maxObservedHeightInRow)
+        maxObservedHeightInRow = bodyHeight;
+
+      const position = [x + bodyWidth * 0.5, y + bodyHeight * 0.5];
+      const angle = Math.random() * 20-10;
+  
+      // Convert from matter.js (0,0) at top-left with y down and angles along x
+      // to (0,0) at bottom-left with y up with angles along y.
+      present.pos = [position[0] * px_to_m, (HEIGHT - position[1]) * px_to_m];
+      present.ori = [Math.sin(angle), Math.cos(angle)];
+
+      // Calculate position to spawn next gift.
+      x = x + bodyWidth + gap;
+      if (x > worldWidthPx - gap) {
+        x = startX;
+        y -= maxObservedHeightInRow + gap;
+        maxObservedHeightInRow = 0;
+        row ++;
+      }
+    }
   }
 }
 
@@ -259,10 +358,13 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 100; // total simulation steps
+let t = 200; // total simulation steps
+
+const orders = generateRandomOrders(100).orders;
+generateInitialPositionsForRenderer(WIDTH, HEIGHT, orders);
+//loadInitialPositionsFromJSONToRenderer();
 
 const uiRenderer: UIRenderer = new UIRenderer(canvas, colorBg, colors, widthsPx, heightsPx);
-
 
 
 import('@dimforge/rapier2d').then(RAPIER => {
@@ -272,10 +374,15 @@ import('@dimforge/rapier2d').then(RAPIER => {
   let world = new RAPIER.World(gravity);
 
   // Create the ground
-  let groundColliderDesc = RAPIER.ColliderDesc.cuboid(10.0, 0.01);
-  world.createCollider(groundColliderDesc);
+  //function addWalls(world, worldWidthPx, worldHeightPx)
+  const worldW = WIDTH/100;
+  const worldH = HEIGHT/100;
+    const wall = 0.5;
+    const h = worldH * 2;
+    world.createCollider(RAPIER.ColliderDesc.cuboid((worldW + wall)/2, wall/2).setTranslation(worldW*0.5, -wall*0.5)); // Floor
+    world.createCollider(RAPIER.ColliderDesc.cuboid(          wall/2, h/2   ).setTranslation(worldW + wall*0.5, wall + h*0.5)); // Right
+    world.createCollider(RAPIER.ColliderDesc.cuboid(          wall/2, h/2   ).setTranslation(     0 - wall*0.5, wall + h*0.5)); // Left
 
-  load_initial_positionsToRenderer();
   loadInitialPositionsFromRendererToRapier(RAPIER, world);
 
   function tick_simulation(current_time: number) {
