@@ -371,7 +371,10 @@ import('@dimforge/rapier2d').then(RAPIER => {
 
   // Create Physics world.
   const gravity = { x: 0.0, y: -9.81 };
-  let world = new RAPIER.World(gravity);
+  /*const integrationParameters = {
+    dt: 1 / 60, // simulation timestep
+  };*/
+  let world = new RAPIER.World(gravity/*, integrationParameters*/);
 
   // Create the ground
   //function addWalls(world, worldWidthPx, worldHeightPx)
