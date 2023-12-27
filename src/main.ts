@@ -39,7 +39,7 @@ const colors: Array<vec4> = ['#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e4', '#e4e4e
 // Bg color to hardcode in the fragment shader.
 const colorBg = hexToRGBFloat('#5a535c');
 
-const scale = 8 / Math.sqrt(12);
+const scale = 1.5;
 let widthVariancePercent = [      // How much longer is one side vs the other.
   0.0, 0.0, 0.0, 0.0, 0.0, 0.0,   // e.g. 0.5 = one side is 50% longer than the other.
   0.0, 0.7, 0.3, 0.5, 0.25, 0.1]; // 0.0 is a square. Don't type 1.0 ;)
@@ -358,9 +358,9 @@ function draw() {
 const fps = 30;
 const frame_dur = Math.floor(1000/fps);
 let start_time = 0;
-let t = 200; // total simulation steps
+let t = 500; // total simulation steps
 
-const orders = generateRandomOrders(100).orders;
+const orders = generateRandomOrders(10000).orders;
 generateInitialPositionsForRenderer(WIDTH, HEIGHT, orders);
 //loadInitialPositionsFromJSONToRenderer();
 
@@ -398,8 +398,8 @@ import('@dimforge/rapier2d').then(RAPIER => {
 
       draw();
   
-      if (delta_time > 40)
-        console.log("ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
+      if (delta_time > 60)
+        console.log("long frame! ms: " + delta_time + " fps: " + Math.floor(1000 / delta_time));
       t--;
     }
   
