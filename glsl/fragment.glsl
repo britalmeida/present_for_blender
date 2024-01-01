@@ -18,8 +18,8 @@ const int TILES_CMD_RANGE_BUFFER_LINE = 4 * 1024; // Single line, addresses all 
 
 // Inputs
 uniform vec4 color_bg;
-uniform vec4 gift_colors[12];
-uniform vec2 gift_sizes[12];
+uniform vec4 gift_colors[32];
+uniform vec2 gift_sizes[32];
 uniform vec2 viewport_size;
 uniform vec2 view_scale;
 uniform vec2 view_offset;

@@ -511,6 +511,11 @@ class UIRenderer {
               colorBg: vec4 = [0.7176470588235294, 0.7529411764705882, 0.9, 1.0],
               giftColors: Array<vec4>, giftWidths: Array<number>, giftHeights: Array<number>) {
 
+    if (giftColors.length !== giftWidths.length || giftColors.length !== giftHeights.length )
+      throw new Error("Gift renderer: constructor passed mismatched number of gift sizes and colors");
+    if (giftColors.length > 32)
+      throw new Error("Gift renderer: too many gift tiers, update the shader");
+
     // Initialize the GL context.
     const gl = canvas.getContext('webgl2');
     if (!gl) {
